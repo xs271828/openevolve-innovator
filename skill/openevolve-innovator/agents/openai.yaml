@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenEvolve Innovator"
+  short_description: "Evolve algorithms across model backends"
+  default_prompt: "Use $openevolve-innovator to discover and rigorously validate a candidate algorithm with an appropriate model backend."

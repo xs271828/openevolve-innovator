@@ -1,0 +1,58 @@
+max_iterations: 50
+checkpoint_interval: 10
+log_level: "INFO"
+random_seed: 42
+language: "python"
+file_suffix: ".py"
+early_stopping_patience: 20
+convergence_threshold: 0.0001
+early_stopping_metric: "combined_score"
+
+# MODEL-BACKEND-START
+llm:
+  provider: "openai"
+  api_base: "REPLACE_WITH_OPENAI_COMPATIBLE_BASE_URL"
+  api_key: "${MODEL_API_KEY}"
+  temperature: 0.7
+  max_tokens: 8192
+  timeout: 120
+  models:
+    - name: "REPLACE_WITH_MODEL"
+      weight: 1.0
+# MODEL-BACKEND-END
+
+prompt:
+  system_message: |
+    Improve only code inside EVOLVE-BLOCK markers.
+    Preserve public interfaces and all hard constraints in problem.yaml.
+    Favor correctness, then the documented primary metric.
+    Do not read holdout data, environment secrets, or files outside the experiment.
+  num_top_programs: 3
+  num_diverse_programs: 2
+  include_artifacts: true
+  max_artifact_bytes: 4096
+
+database:
+  population_size: 50
+  archive_size: 20
+  num_islands: 3
+  random_seed: 42
+  feature_dimensions: ["complexity", "diversity", "combined_score"]
+  feature_bins: 10
+  log_prompts: true
+
+evaluator:
+  timeout: 120
+  max_retries: 1
+  cascade_evaluation: false
+  parallel_evaluations: 1
+  enable_artifacts: true
+
+evolution_trace:
+  enabled: true
+  format: "jsonl"
+  include_code: true
+  include_prompts: true
+  output_path: "openevolve_output/evolution_trace.jsonl"
+
+diff_based_evolution: true

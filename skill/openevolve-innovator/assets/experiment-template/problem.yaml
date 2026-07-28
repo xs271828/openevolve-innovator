@@ -1,0 +1,38 @@
+name: "{{EXPERIMENT_NAME}}"
+objective: "TODO: state one executable optimization objective"
+primary_metric: "combined_score"
+report_language: "zh-CN"
+search_dataset: "data/search.jsonl"
+holdout_dataset: "data/holdout.jsonl"
+iterations: 50
+seeds: [11, 23, 47]
+hard_constraints:
+  - "TODO: define correctness and safety constraints"
+weak_baselines:
+  - "initial_program"
+strong_baselines:
+  - "TODO: name at least one credible external baseline"
+program_contract:
+  enforce_public_signatures: true
+model_context:
+  minimum_context_window_tokens: null
+  utilization: 0.8
+  chars_per_token: 2.0
+  fixed_prompt_reserve_tokens: 2048
+  artifact_reserve_tokens: 4096
+code_budget:
+  growth_ratio: 1.5
+  growth_allowance_chars: 4000
+  hard_max_chars: 20000
+runtime:
+  docker:
+    profile: "standard"
+    memory: null
+    cpus: null
+    pids_limit: null
+    tmpfs_size: null
+budget:
+  max_iterations: 50
+  max_wall_time_minutes: 120
+  max_estimated_cost_usd: 10
+  estimated_cost_per_iteration_usd: null
