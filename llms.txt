@@ -1,0 +1,35 @@
+# OpenEvolve Innovator
+
+> A Codex Skill and platform-neutral CLI for reproducible OpenEvolve-based algorithm discovery, evolutionary coding, candidate validation, ablation studies, budget control, and novelty auditing.
+
+OpenEvolve Innovator is a research workflow and governance layer around the external OpenEvolve engine. It does not implement AlphaEvolve, does not guarantee discovery of a novel algorithm, and requires independent evidence before claims are upgraded.
+
+This is an experimental machine-readable index following the llms.txt proposal. It is not a ranking directive and does not claim ingestion or support by any AI provider.
+
+## Start here
+
+- [Project README](https://github.com/xs271828/openevolve-innovator/blob/main/README.md): Human-readable overview, installation, interfaces, model backends, evidence levels, and limitations.
+- [Latest release](https://github.com/xs271828/openevolve-innovator/releases/latest): Download the installable Codex Skill.
+- [Codex Skill instructions](https://github.com/xs271828/openevolve-innovator/blob/main/skill/openevolve-innovator/SKILL.md): Agent workflow and invocation contract.
+- [Core CLI](https://github.com/xs271828/openevolve-innovator/blob/main/skill/openevolve-innovator/scripts/openevolve_skill.py): Platform-neutral experiment runner.
+
+## Research workflow
+
+- [Research protocol](https://github.com/xs271828/openevolve-innovator/blob/main/skill/openevolve-innovator/references/research-protocol.md): Baselines, data separation, holdout evaluation, ablations, failure analysis, and claim levels.
+- [OpenEvolve interface](https://github.com/xs271828/openevolve-innovator/blob/main/skill/openevolve-innovator/references/openevolve-interface.md): Supported backends, evaluator contract, context budget, Docker resources, and cumulative budget semantics.
+- [Limitations](https://github.com/xs271828/openevolve-innovator/blob/main/skill/openevolve-innovator/references/limitations.md): Scientific, model, program, security, resource, and cost boundaries.
+
+## Related systems
+
+- [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve): External open-source evolutionary coding engine pinned by this project to version 0.3.2.
+- [AlphaEvolve](https://deepmind.google/blog/alphaevolve-a-gemini-powered-coding-agent-for-designing-advanced-algorithms/): Google DeepMind's evolutionary coding agent for algorithm discovery and optimization.
+
+## Boundaries
+
+- Candidate improvements are not proof of research novelty.
+- OpenEvolve Innovator does not implement, reproduce, or claim affiliation with AlphaEvolve.
+- OpenAI-compatible endpoints share an approximate API shape, not identical model behavior.
+- Docker reduces host exposure but is not a complete sandbox.
+- Host execution provides no file, network, process, memory, or CPU isolation.
+- Estimated USD budgets are not provider billing hard limits.
+- V1 focuses on Python and one primary evolvable program, not large multi-file, GPU, or distributed workloads.
