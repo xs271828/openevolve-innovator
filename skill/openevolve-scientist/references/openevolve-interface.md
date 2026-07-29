@@ -17,7 +17,7 @@ The runner exposes three transport profiles:
 | Backend | OpenEvolve configuration | Credentials | Docker |
 |---|---|---|---|
 | `openai-compatible` | `provider: openai` plus `api_base` | One or more `${ENV_VAR}` references | Supported |
-| `claude-code` | `provider: claude_code` | Authenticated `claude` CLI session | Host-only in V1 |
+| `claude-code` | `provider: claude_code` | Authenticated `claude` CLI session | Host-only in the current implementation |
 | `manual` | `manual_mode: true` | None; answers arrive through the manual queue | Supported |
 
 OpenAI-compatible endpoints cover many hosted gateways and local servers, but providers may differ in parameter support, token accounting, context handling, errors, and reproducibility. Unknown provider names are rejected because OpenEvolve 0.3.2 otherwise falls back to its OpenAI backend.

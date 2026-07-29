@@ -1,0 +1,4 @@
+interface:
+  display_name: "OpenEvolve Scientist"
+  short_description: "Run rigorous algorithm-discovery research"
+  default_prompt: "Use $openevolve-scientist to discover and rigorously validate a candidate algorithm with an appropriate model backend."

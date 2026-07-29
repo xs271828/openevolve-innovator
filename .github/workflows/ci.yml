@@ -22,7 +22,7 @@ jobs:
       - name: Run unit and entrypoint tests
         env:
           PYTHONDONTWRITEBYTECODE: "1"
-        run: python -B -m unittest discover -s skill/openevolve-innovator/scripts/tests -v
+        run: python -B -m unittest discover -s skill/openevolve-scientist/scripts/tests -v
       - name: Validate repository and Skill structure
         run: python tools/build_release.py --check-only
 
@@ -31,9 +31,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build pinned OpenEvolve image
-        run: docker build --tag openevolve-innovator-smoke skill/openevolve-innovator/assets/experiment-template
+        run: docker build --tag openevolve-scientist-smoke skill/openevolve-scientist/assets/experiment-template
       - name: Execute image entrypoint
-        run: docker run --rm openevolve-innovator-smoke --help
+        run: docker run --rm openevolve-scientist-smoke --help
 
   packages:
     runs-on: ubuntu-latest
@@ -48,5 +48,5 @@ jobs:
         run: python tools/build_release.py --output-dir dist
       - uses: actions/upload-artifact@v4
         with:
-          name: openevolve-innovator-release
+          name: openevolve-scientist-release
           path: dist/*.zip

@@ -14,7 +14,8 @@ import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SKILL_ROOT = REPO_ROOT / "skill" / "openevolve-innovator"
+SKILL_NAME = "openevolve-scientist"
+SKILL_ROOT = REPO_ROOT / "skill" / SKILL_NAME
 SKILL_TOP_LEVEL = {"SKILL.md", "agents", "assets", "references", "scripts"}
 EXCLUDED_NAMES = {
     ".git",
@@ -35,9 +36,14 @@ SECRET_PATTERNS = (
     re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----"),
 )
 STALE_PATTERNS = (
+    "openevolve-innovator",
+    "OpenEvolve Innovator",
     "openevolve-algorithm-discovery",
     "OpenEvolve Algorithm Discovery",
     "openevolve-research-guard",
+)
+LEGACY_README_SECTION = re.compile(
+    r"(?ms)^## Migrating from OpenEvolve Innovator\n.*?(?=^## |\Z)"
 )
 
 
@@ -59,7 +65,7 @@ def validate_frontmatter() -> None:
     frontmatter = yaml.safe_load(match.group(1))
     if set(frontmatter) != {"name", "description"}:
         raise RuntimeError("SKILL.md frontmatter must contain only name and description")
-    if frontmatter["name"] != "openevolve-innovator":
+    if frontmatter["name"] != SKILL_NAME:
         raise RuntimeError("SKILL.md name does not match the Skill directory")
 
 
@@ -91,9 +97,12 @@ def validate_contents() -> None:
             for pattern in SECRET_PATTERNS:
                 if pattern.search(text):
                     raise RuntimeError(f"Secret-shaped value found in {path}")
+            stale_scan_text = text
+            if path.resolve() == (REPO_ROOT / "README.md").resolve():
+                stale_scan_text = LEGACY_README_SECTION.sub("", stale_scan_text)
             if path.resolve() != Path(__file__).resolve():
                 for stale in STALE_PATTERNS:
-                    if stale.lower() in text.lower():
+                    if stale.lower() in stale_scan_text.lower():
                         raise RuntimeError(f"Stale name {stale!r} found in {path}")
 
 
@@ -116,9 +125,9 @@ def write_skill_zip(destination: Path) -> None:
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in iter_files(SKILL_ROOT):
             relative = path.relative_to(SKILL_ROOT).as_posix()
-            archive.write(path, f"openevolve-innovator/{relative}")
+            archive.write(path, f"{SKILL_NAME}/{relative}")
         for name in ("LICENSE", "NOTICE"):
-            archive.write(REPO_ROOT / name, f"openevolve-innovator/{name}")
+            archive.write(REPO_ROOT / name, f"{SKILL_NAME}/{name}")
 
 
 def validate_archive(path: Path, *, skill_only: bool) -> None:
@@ -131,25 +140,25 @@ def validate_archive(path: Path, *, skill_only: bool) -> None:
     ):
         raise RuntimeError(f"Unsafe archive paths in {path}")
     roots = {name.replace("\\", "/").split("/", 1)[0] for name in names}
-    if roots != {"openevolve-innovator"}:
+    if roots != {SKILL_NAME}:
         raise RuntimeError(f"Unexpected archive root in {path}: {sorted(roots)}")
     normalized = {name.replace("\\", "/") for name in names}
     if skill_only:
         if any("/README.md" in name or "/.github/" in name for name in normalized):
             raise RuntimeError("Skill archive contains repository-only files")
         for required in (
-            "openevolve-innovator/SKILL.md",
-            "openevolve-innovator/LICENSE",
-            "openevolve-innovator/NOTICE",
+            f"{SKILL_NAME}/SKILL.md",
+            f"{SKILL_NAME}/LICENSE",
+            f"{SKILL_NAME}/NOTICE",
         ):
             if required not in normalized:
                 raise RuntimeError(f"Skill archive is missing {required}")
     else:
         for required in (
-            "openevolve-innovator/README.md",
-            "openevolve-innovator/LICENSE",
-            "openevolve-innovator/.github/workflows/ci.yml",
-            "openevolve-innovator/skill/openevolve-innovator/SKILL.md",
+            f"{SKILL_NAME}/README.md",
+            f"{SKILL_NAME}/LICENSE",
+            f"{SKILL_NAME}/.github/workflows/ci.yml",
+            f"{SKILL_NAME}/skill/{SKILL_NAME}/SKILL.md",
         ):
             if required not in normalized:
                 raise RuntimeError(f"Repository archive is missing {required}")
@@ -175,10 +184,10 @@ def main() -> int:
         return 0
 
     output_dir = Path(args.output_dir).expanduser().resolve()
-    skill_zip = output_dir / "openevolve-innovator.zip"
-    repo_zip = output_dir / "openevolve-innovator-github.zip"
+    skill_zip = output_dir / f"{SKILL_NAME}.zip"
+    repo_zip = output_dir / f"{SKILL_NAME}-github.zip"
     write_skill_zip(skill_zip)
-    write_zip(REPO_ROOT, repo_zip, "openevolve-innovator")
+    write_zip(REPO_ROOT, repo_zip, SKILL_NAME)
     validate_archive(skill_zip, skill_only=True)
     validate_archive(repo_zip, skill_only=False)
     for path in (skill_zip, repo_zip):
