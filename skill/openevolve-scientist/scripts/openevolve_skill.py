@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministic runner for the openevolve-innovator skill."""
+"""Deterministic runner for the openevolve-scientist skill."""
 
 from __future__ import annotations
 
@@ -428,7 +428,8 @@ def resolve_model_runtime(
             record["api_base"] = None
             if mode == "docker":
                 errors.append(
-                    "claude-code backend is host-only in V1; use --mode host or an OpenAI-compatible gateway"
+                "claude-code backend is host-only in the current implementation; "
+                "use --mode host or an OpenAI-compatible gateway"
                 )
         elif backend == "manual":
             record["api_base"] = None
@@ -664,7 +665,7 @@ def docker_smoke_status(context: Path) -> dict[str, Any]:
     if not docker.get("server_available"):
         return {"requested": True, "ok": False, "status": "docker_unavailable"}
     digest = hashlib.sha256(str(context.resolve()).encode("utf-8")).hexdigest()[:12]
-    tag = f"openevolve-innovator-smoke:{digest}"
+    tag = f"openevolve-scientist-smoke:{digest}"
     build = run_help_probe(
         ["docker", "build", "--tag", tag, str(context)],
         timeout=300,
@@ -1726,7 +1727,7 @@ def effective_config_text(root: Path, resolved_code_limit: int) -> str:
     ).rstrip()
     return (
         source
-        + "\n\n# Resolved by openevolve-innovator after context preflight.\n"
+        + "\n\n# Resolved by openevolve-scientist after context preflight.\n"
         + f"max_code_length: {resolved_code_limit}\n"
     )
 
@@ -2582,7 +2583,7 @@ def build_report(summary: dict[str, Any], language: str) -> str:
     task_validation = summary["task_validation"]
     validation_reasons = task_validation.get("reasons", [])
     if language.lower().startswith("zh"):
-        return f"""# OpenEvolve Innovator 研究报告
+        return f"""# OpenEvolve Scientist 研究报告
 
 ## 结论
 
@@ -2628,7 +2629,7 @@ def build_report(summary: dict[str, Any], language: str) -> str:
 
 {limitations_audit['task_specific_text']}
 """
-    return f"""# OpenEvolve Innovator Research Report
+    return f"""# OpenEvolve Scientist Research Report
 
 ## Conclusion
 

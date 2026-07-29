@@ -1,19 +1,19 @@
-# OpenEvolve Innovator
+# OpenEvolve Scientist
 
-[![CI](https://github.com/xs271828/openevolve-innovator/actions/workflows/ci.yml/badge.svg)](https://github.com/xs271828/openevolve-innovator/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/xs271828/openevolve-innovator)](https://github.com/xs271828/openevolve-innovator/releases/latest)
+[![CI](https://github.com/xs271828/openevolve-scientist/actions/workflows/ci.yml/badge.svg)](https://github.com/xs271828/openevolve-scientist/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/xs271828/openevolve-scientist)](https://github.com/xs271828/openevolve-scientist/releases/latest)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/github/license/xs271828/openevolve-innovator)](LICENSE)
+[![License](https://img.shields.io/github/license/xs271828/openevolve-scientist)](LICENSE)
 
-OpenEvolve Innovator is a Codex Skill and platform-neutral CLI for reproducible [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve)-based algorithm discovery and evolutionary coding experiments. It helps AI agents evolve and validate candidate algorithms with baseline reproduction, holdout validation, ablation studies, budget and resource controls, checkpoint recovery, failure analysis, and novelty audits.
+OpenEvolve Scientist is a Codex Skill and platform-neutral research CLI for reproducible and auditable [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve)-based algorithm-discovery experiments. It helps AI agents evolve and validate candidate algorithms with baseline reproduction, holdout validation, ablation studies, budget and resource controls, checkpoint recovery, failure analysis, and novelty audits.
 
-It is a research workflow and governance layer around OpenEvolve—not a new evolution engine, not an AlphaEvolve implementation, and not a guarantee of algorithmic novelty.
+“Scientist” describes the research workflow, not autonomous scientific ability. This project is a governance layer around OpenEvolve—not a new evolution engine, not an AlphaEvolve implementation, not an official OpenEvolve component, and not a guarantee of algorithmic novelty.
 
 [Install the Codex Skill](#codex-skill) · [Use the generic CLI](#generic-cli) · [Understand the relationship](#relationship-to-alphaevolve-and-openevolve) · [Read the limitations](#limitations) · [Machine-readable overview](llms.txt)
 
 ## Why use it?
 
-OpenEvolve provides the evolutionary coding engine. OpenEvolve Innovator adds the controls needed to turn an optimization run into a reviewable research experiment:
+OpenEvolve provides the evolutionary coding engine. OpenEvolve Scientist adds the controls needed to turn an optimization run into a reviewable research experiment:
 
 - reproducible baselines and explicit search/holdout separation;
 - multi-seed candidate validation, strong-baseline comparisons, and ablation studies;
@@ -24,10 +24,10 @@ OpenEvolve provides the evolutionary coding engine. OpenEvolve Innovator adds th
 
 ## Codex Skill
 
-Download [`openevolve-innovator.zip`](https://github.com/xs271828/openevolve-innovator/releases/latest/download/openevolve-innovator.zip), install it as a Codex Skill, and invoke:
+Download [`openevolve-scientist.zip`](https://github.com/xs271828/openevolve-scientist/releases/latest/download/openevolve-scientist.zip), install it as a Codex Skill, and invoke:
 
 ```text
-$openevolve-innovator
+$openevolve-scientist
 ```
 
 The Skill guides Codex through:
@@ -47,9 +47,9 @@ Any AI agent or human workflow that can execute Python and edit files can use th
 
 ```text
 python -m pip install openevolve==0.3.2
-python skill/openevolve-innovator/scripts/openevolve_skill.py doctor
-python skill/openevolve-innovator/scripts/openevolve_skill.py init experiment --name example --backend openai-compatible
-python skill/openevolve-innovator/scripts/openevolve_skill.py validate experiment --for-run
+python skill/openevolve-scientist/scripts/openevolve_skill.py doctor
+python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name example --backend openai-compatible
+python skill/openevolve-scientist/scripts/openevolve_skill.py validate experiment --for-run
 ```
 
 For an OpenAI-compatible backend, set the model name, API base, minimum model context, and a credential environment variable before running. Never place a credential value in YAML.
@@ -70,15 +70,15 @@ Manual mode is transport-agnostic, not constraint-free: declare the smallest con
 
 [AlphaEvolve](https://deepmind.google/blog/alphaevolve-a-gemini-powered-coding-agent-for-designing-advanced-algorithms/) is Google DeepMind's evolutionary coding agent for general-purpose algorithm discovery and optimization. The upstream [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve) project presents itself as an open-source implementation of the AlphaEvolve approach.
 
-OpenEvolve Innovator is a separate workflow around OpenEvolve:
+OpenEvolve Scientist is a separate workflow around OpenEvolve:
 
 | Project | Role |
 |---|---|
 | AlphaEvolve | DeepMind research system for evolving algorithms with language models and automated evaluators |
 | OpenEvolve | External open-source evolutionary coding engine used by this project |
-| OpenEvolve Innovator | Codex Skill and generic CLI that add research protocol, validation, safety, budget, recovery, and reporting controls |
+| OpenEvolve Scientist | Codex Skill and generic CLI that add research protocol, validation, safety, budget, recovery, and reporting controls |
 
-OpenEvolve Innovator does not implement or reproduce AlphaEvolve, is not affiliated with Google DeepMind, and should not be presented as an implementation of or substitute for AlphaEvolve. It pins `openevolve==0.3.2` and does not redistribute OpenEvolve source code.
+OpenEvolve Scientist does not implement or reproduce AlphaEvolve, is not affiliated with Google DeepMind or the OpenEvolve maintainers, and should not be presented as an implementation of or substitute for AlphaEvolve. It pins `openevolve==0.3.2` and does not redistribute OpenEvolve source code.
 
 ## Evidence and claim discipline
 
@@ -93,28 +93,34 @@ The final level records an audit outcome; it does not mathematically prove that 
 
 ## Limitations
 
-OpenEvolve Innovator does not guarantee a new algorithm. It searches candidates against an evaluator, so reward hacking, development-set overfitting, leakage, and missing constraints remain central risks. Research novelty still requires prior-art review, strong baselines, held-out evaluation, ablations, and independent scrutiny.
+OpenEvolve Scientist does not guarantee a new algorithm or autonomously complete scientific research. It searches candidates against an evaluator, so reward hacking, development-set overfitting, leakage, and missing constraints remain central risks. Research novelty still requires prior-art review, strong baselines, held-out evaluation, ablations, and independent scrutiny.
 
 Generated code is untrusted. Docker reduces host exposure but is not a complete sandbox, and code in the same container can access mounted experiment files and passed model credentials. Host mode has no meaningful isolation.
 
-The V1 workflow is strongest for Python and one primary evolvable program. Large multi-file systems, GPU workloads, distributed search, exact provider billing, and native support for every private model API are outside its reliable scope. See [`references/limitations.md`](skill/openevolve-innovator/references/limitations.md) for the complete boundary.
+The current workflow is strongest for Python and one primary evolvable program. Large multi-file systems, GPU workloads, distributed search, exact provider billing, and native support for every private model API are outside its reliable scope. See [`references/limitations.md`](skill/openevolve-scientist/references/limitations.md) for the complete boundary.
+
+## Migrating from OpenEvolve Innovator
+
+Release [`v1.0.0`](https://github.com/xs271828/openevolve-innovator/releases/tag/v1.0.0) remains available and unchanged. Version 2 renames the Skill and invocation from `$openevolve-innovator` to `$openevolve-scientist`; the new archive intentionally contains no compatibility alias.
+
+Existing experiment directories remain compatible because the CLI subcommands, `problem.yaml`, OpenEvolve configuration, budget ledger, run manifest, and summary schemas are unchanged. GitHub redirects the former repository URL after the repository rename, but new documentation and automation should use `xs271828/openevolve-scientist`.
 
 ## 中文快速开始
 
-OpenEvolve Innovator 是面向 Codex 和其他可执行 Python 的 AI Agent 的 OpenEvolve 科研工作流。它为候选算法搜索增加可复现基线、留出集验证、多随机种子复测、消融、预算、Docker、接口契约、失败分析和新颖性审计。
+OpenEvolve Scientist 是面向 Codex 和其他可执行 Python 的 AI Agent 的 OpenEvolve 科研工作流。它为候选算法搜索增加可复现基线、留出集验证、多随机种子复测、消融、预算、Docker、接口契约、失败分析和新颖性审计。
 
-它不是“保证发明新算法”的工具，也不是 AlphaEvolve 的实现。所谓模型通用，是指支持 OpenAI-compatible 接口、Claude Code 和 manual queue；不兼容这些入口的模型需要通过网关或外部执行器连接。
+“Scientist”描述的是科研流程，不表示它能够自主完成科学研究。它不是“保证发明新算法”的工具，也不是 AlphaEvolve 或 OpenEvolve 官方组件。所谓模型通用，是指支持 OpenAI-compatible 接口、Claude Code 和 manual queue；不兼容这些入口的模型需要通过网关或外部执行器连接。
 
 安装 Release 中的 Codex Skill 后调用：
 
 ```text
-$openevolve-innovator
+$openevolve-scientist
 ```
 
 使用通用 CLI 初始化 manual 后端实验：
 
 ```text
-python skill/openevolve-innovator/scripts/openevolve_skill.py init experiment --name 示例 --backend manual
+python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name 示例 --backend manual
 ```
 
 开始实验前必须阅读局限性说明，并在最终报告中完成任务特定的有效性威胁审计。

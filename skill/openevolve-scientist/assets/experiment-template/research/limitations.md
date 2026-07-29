@@ -4,6 +4,7 @@ STATUS: incomplete
 
 ## Inherited limitations
 
+- “Scientist” describes a structured workflow, not autonomous scientific ability or a substitute for expert review.
 - OpenEvolve produces candidate improvements; it does not prove research novelty.
 - Evaluator misspecification can reward hacking, development-set overfitting, leakage, or constraint bypasses.
 - Model-side nondeterminism can remain even when seeds and configuration are recorded.
@@ -11,7 +12,7 @@ STATUS: incomplete
 - Docker reduces host exposure but does not hide mounted experiment files or in-container model credentials from candidate code.
 - Estimated USD accounting is not a provider billing hard limit.
 - The default contract guard checks Python signatures, not semantic equivalence or side effects.
-- V1 is designed around Python and one primary evolvable program, not large multi-file, GPU, or distributed workloads.
+- The current workflow is designed around Python and one primary evolvable program, not large multi-file, GPU, or distributed workloads.
 
 ## Task-specific threats
 

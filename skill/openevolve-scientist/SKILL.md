@@ -1,11 +1,13 @@
 ---
-name: openevolve-innovator
-description: Evolve, test, and audit candidate algorithms with OpenEvolve through reproducible research experiments. Use when an AI coding agent needs to invent or optimize executable algorithms, explore alternative algorithmic strategies, build rigorous evaluators and baselines, connect OpenAI-compatible, Claude Code, or manual model backends, control search resources and cost, run ablations, or determine whether an evolved result may be genuinely novel.
+name: openevolve-scientist
+description: Evolve, test, and audit candidate algorithms with OpenEvolve through reproducible research experiments. Use when an AI coding agent needs to discover or optimize executable algorithms, explore alternative algorithmic strategies, build rigorous evaluators and baselines, connect OpenAI-compatible, Claude Code, or manual model backends, control search resources and cost, run ablations, or assess whether an evolved result may be genuinely novel.
 ---
 
-# OpenEvolve Innovator
+# OpenEvolve Scientist
 
 Turn an optimization question into a reproducible search for candidate algorithmic innovations. Treat OpenEvolve as the search engine and use this skill to enforce evidence, evaluation, resource, safety, and novelty gates.
+
+Treat “Scientist” as a workflow role, not a claim of autonomous scientific ability. Never imply that this independent Skill is an official OpenEvolve component or that it can prove novelty.
 
 ## Use the runner
 
