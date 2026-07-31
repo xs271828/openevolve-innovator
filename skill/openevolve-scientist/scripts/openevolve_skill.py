@@ -32,7 +32,7 @@ PINNED_OPENEVOLVE_VERSION = "0.3.2"
 HOST_ENTRYPOINT_MODULE = "openevolve.cli"
 CONSOLE_ENTRYPOINT_NAME = "openevolve-run"
 CONSOLE_ENTRYPOINT_TARGET = "openevolve.cli:main"
-BACKEND_CHOICES = ("openai-compatible", "claude-code", "manual")
+BACKEND_CHOICES = ("codex-native", "openai-compatible", "claude-code", "manual")
 ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ENV_REFERENCE_RE = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 SKILL_DIR = Path(__file__).resolve().parents[1]
@@ -324,6 +324,43 @@ def resolve_model_runtime(
             "warnings": [],
         }
 
+    native_config = config.get("codex_native")
+    native_enabled = (
+        native_config is True
+        or isinstance(native_config, dict)
+        and native_config.get("enabled") is True
+    )
+    if native_enabled:
+        if mode == "docker":
+            warnings.append(
+                "codex-native is executed by the active Codex agent on the host; "
+                "Docker mode is not used for native model calls"
+            )
+        return {
+            "status": "ready",
+            "backend_types": ["codex-native"],
+            "models": [
+                {
+                    "name": (
+                        native_config.get("model", "codex-current-session")
+                        if isinstance(native_config, dict)
+                        else "codex-current-session"
+                    ),
+                    "backend": "codex-native",
+                }
+            ],
+            "manual_mode": False,
+            "native_mode": True,
+            "credential_environment_names": [],
+            "required_credential_environments": [],
+            "credential_presence": {},
+            "missing_credential_environment_names": [],
+            "requires_host_gateway": False,
+            "errors": [],
+            "warnings": warnings,
+            "measurement_source": "active Codex session; no external model API",
+        }
+
     llm = config.get("llm")
     if not isinstance(llm, dict):
         llm = {}
@@ -451,7 +488,9 @@ def resolve_model_runtime(
         "backend_types": sorted(backends - {"invalid"}),
         "models": model_records,
         "manual_mode": manual_mode,
+        "native_mode": False,
         "credential_environment_names": credential_names,
+        "required_credential_environments": credential_names,
         "credential_presence": credential_presence,
         "missing_credential_environment_names": missing,
         "requires_host_gateway": requires_host_gateway,
@@ -728,6 +767,11 @@ def doctor_data(
     docker_provider_ready = credential_ready
     if isinstance(docker_model_runtime, dict) and docker_model_runtime.get("errors"):
         docker_provider_ready = False
+    native_ready = bool(
+        isinstance(model_runtime, dict)
+        and model_runtime.get("native_mode")
+        and not model_runtime.get("errors")
+    )
     smoke = docker_smoke_status(
         experiment if experiment and (experiment / "Dockerfile").is_file() else TEMPLATE_DIR
     ) if docker_smoke else {"requested": False}
@@ -763,6 +807,7 @@ def doctor_data(
             and entrypoints.get("ready")
             and provider_ready
         ),
+        "ready_for_codex_native": native_ready,
     }
     if experiment:
         data["experiment"] = str(experiment)
@@ -777,7 +822,7 @@ def command_doctor(args: argparse.Namespace) -> int:
         docker_smoke=bool(getattr(args, "docker_smoke", False)),
     )
     emit(data)
-    return 0 if data["ready_for_docker"] or data["ready_for_host"] else 2
+    return 0 if data.get("ready_for_docker") or data.get("ready_for_host") or data.get("ready_for_codex_native") else 2
 
 
 def render_model_backend(
@@ -790,6 +835,19 @@ def render_model_backend(
         raise SkillError(f"Unsupported backend: {backend}")
     if backend != "openai-compatible" and (api_base or credential_env):
         raise SkillError("--api-base and --credential-env apply only to openai-compatible")
+
+    if backend == "codex-native":
+        if model or api_base or credential_env:
+            raise SkillError("codex-native uses the active Codex session; do not pass model, API base, or credential env")
+        return """# MODEL-BACKEND-START
+codex_native:
+  enabled: true
+  model: "codex-current-session"
+  external_api_required: false
+llm:
+  # The active Codex agent supplies candidates; OpenEvolve is not launched in native mode.
+  models: []
+# MODEL-BACKEND-END"""
 
     if backend == "openai-compatible":
         selected_model = model or "REPLACE_WITH_MODEL"
@@ -859,7 +917,7 @@ def configure_initialized_backend(
 
 def command_init(args: argparse.Namespace) -> int:
     target = resolve_experiment(args.experiment, require_exists=False)
-    backend = getattr(args, "backend", "openai-compatible")
+    backend = getattr(args, "backend", "codex-native")
     if target.exists() and any(target.iterdir()):
         raise SkillError(f"Refusing to initialize non-empty directory: {target}")
     target.mkdir(parents=True, exist_ok=True)
@@ -884,6 +942,7 @@ def command_init(args: argparse.Namespace) -> int:
         "data/holdout.jsonl",
         "results/baseline_runs.jsonl",
         "results/failure_cases.jsonl",
+        "results/codex_native_trace.jsonl",
     ):
         (target / relative).touch(exist_ok=True)
 
@@ -898,6 +957,7 @@ def command_init(args: argparse.Namespace) -> int:
                 "Review config.yaml model settings and references/limitations.md in the skill.",
                 "Replace the baseline and evaluator TODOs.",
                 "Document prior art and record at least three baseline runs.",
+                "For codex-native, let the active Codex agent generate candidates and record each local evaluation in results/codex_native_trace.jsonl; do not call run.",
                 f'"{sys.executable}" "{Path(__file__).resolve()}" validate "{target}" --for-run',
             ],
         }
@@ -2089,6 +2149,23 @@ def run_evolution(args: argparse.Namespace, resume: bool) -> int:
         emit({"command": "resume" if resume else "run", "status": "blocked", **validation})
         return 2
 
+    runtime = validation.get("model_runtime", {})
+    if isinstance(runtime, dict) and runtime.get("native_mode"):
+        emit(
+            {
+                "command": "resume" if resume else "run",
+                "status": "native_agent_required",
+                "message": (
+                    "codex-native is driven by the active Codex agent, not by an OpenEvolve subprocess. "
+                    "Follow SKILL.md: generate bounded candidates in the experiment, run the local evaluator, "
+                    "record results/codex_native_trace.jsonl, then perform holdout validation and summarize."
+                ),
+                "experiment": str(root),
+                "model_runtime": runtime,
+            }
+        )
+        return 0
+
     problem = load_yaml(root / "problem.yaml")
     iterations = (
         int(problem["iterations"])
@@ -2910,7 +2987,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument(
         "--backend",
         choices=BACKEND_CHOICES,
-        default="openai-compatible",
+        default="codex-native",
         help="Model transport profile",
     )
     init.add_argument("--model", help="Initial model name for the selected backend")

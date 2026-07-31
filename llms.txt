@@ -9,9 +9,16 @@ This is an experimental machine-readable index following the llms.txt proposal. 
 ## Start here
 
 - [Project README](https://github.com/xs271828/openevolve-scientist/blob/main/README.md): Human-readable overview, installation, interfaces, model backends, evidence levels, and limitations.
-- [Latest release](https://github.com/xs271828/openevolve-scientist/releases/latest): Download the installable Codex Skill.
+- [Latest release](https://github.com/xs271828/openevolve-scientist/releases/latest): Download the installable Codex Skill; unzip its `openevolve-scientist/` folder into the Codex skills directory.
 - [Codex Skill instructions](https://github.com/xs271828/openevolve-scientist/blob/main/skill/openevolve-scientist/SKILL.md): Agent workflow and invocation contract.
 - [Core CLI](https://github.com/xs271828/openevolve-scientist/blob/main/skill/openevolve-scientist/scripts/openevolve_skill.py): Platform-neutral experiment runner.
+
+## Codex-native mode
+
+- The default `codex-native` backend uses the active Codex model as the candidate-generation agent and a local Python evaluator.
+- It requires no API key, external model client, Docker, or OpenEvolve installation.
+- It is an agent-managed bounded loop, not a Python script that recursively calls the current Codex session.
+- External OpenEvolve backends remain available through `openai-compatible`, `claude-code`, and `manual`.
 
 ## Research workflow
 

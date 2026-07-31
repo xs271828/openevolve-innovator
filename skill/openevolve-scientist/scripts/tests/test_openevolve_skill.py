@@ -27,7 +27,16 @@ class OpenEvolveSkillTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name) / "experiment"
         with contextlib.redirect_stdout(io.StringIO()):
-            result = skill.command_init(Namespace(experiment=str(self.root), name="fixture"))
+            result = skill.command_init(
+                Namespace(
+                    experiment=str(self.root),
+                    name="fixture",
+                    backend="openai-compatible",
+                    model=None,
+                    api_base=None,
+                    credential_env=None,
+                )
+            )
         self.assertEqual(result, 0)
 
     def tearDown(self) -> None:
@@ -117,6 +126,7 @@ STATUS: complete
 
     def test_init_renders_all_backend_profiles(self) -> None:
         cases = {
+            "codex-native": ("codex_native:", "codex-current-session"),
             "openai-compatible": ('provider: "openai"', "${CUSTOM_MODEL_KEY}"),
             "claude-code": ('provider: "claude_code"', "sonnet"),
             "manual": ("manual_mode: true", 'name: "manual"'),
@@ -146,6 +156,60 @@ STATUS: complete
             self.assertIn(expected[1], text)
             if backend == "manual":
                 self.assertNotIn('provider: "openai"', text)
+
+    def test_codex_native_needs_no_external_model_or_credential(self) -> None:
+        target = Path(self.temp.name) / "native"
+        args = Namespace(
+            experiment=str(target),
+            name="native",
+            backend="codex-native",
+            model=None,
+            api_base=None,
+            credential_env=None,
+        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(skill.command_init(args), 0)
+        runtime = skill.resolve_model_runtime(target, mode="host", for_run=True)
+        self.assertEqual(runtime["status"], "ready")
+        self.assertEqual(runtime["backend_types"], ["codex-native"])
+        self.assertTrue(runtime["native_mode"])
+        self.assertEqual(runtime["credential_environment_names"], [])
+
+    def test_native_run_returns_agent_guidance_without_starting_openevolve(self) -> None:
+        target = Path(self.temp.name) / "native-run"
+        args = Namespace(
+            experiment=str(target),
+            name="native-run",
+            backend="codex-native",
+            model=None,
+            api_base=None,
+            credential_env=None,
+        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(skill.command_init(args), 0)
+        original_root = self.root
+        self.root = target
+        self.make_valid_for_run()
+        self.root = original_root
+        payload = io.StringIO()
+        with contextlib.redirect_stdout(payload):
+            result = skill.run_evolution(
+                Namespace(
+                    experiment=str(target),
+                    mode="host",
+                    iterations=None,
+                    target_score=None,
+                    docker_profile=None,
+                    docker_memory=None,
+                    docker_cpus=None,
+                    acknowledge_host_risk=True,
+                    dry_run=False,
+                    checkpoint=None,
+                ),
+                resume=False,
+            )
+        self.assertEqual(result, 0)
+        self.assertIn("native_agent_required", payload.getvalue())
 
     def test_fallback_yaml_parser_preserves_top_level_lists(self) -> None:
         problem = skill.load_simple_problem_yaml(self.root / "problem.yaml")

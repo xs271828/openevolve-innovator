@@ -1,4 +1,4 @@
 interface:
   display_name: "OpenEvolve Scientist"
-  short_description: "Run rigorous algorithm-discovery research"
-  default_prompt: "Use $openevolve-scientist to discover and rigorously validate a candidate algorithm with an appropriate model backend."
+  short_description: "Discover and validate algorithms with Codex"
+  default_prompt: "Use $openevolve-scientist in codex-native mode to generate bounded algorithm candidates, evaluate them locally, and return a reproducible, evidence-backed result without an external API."
