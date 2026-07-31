@@ -24,18 +24,18 @@ OpenEvolve provides the evolutionary coding engine. OpenEvolve Scientist adds th
 
 ## Codex Skill
 
-Download [`openevolve-scientist.zip`](https://github.com/xs271828/openevolve-scientist/releases/latest/download/openevolve-scientist.zip), install it as a Codex Skill, and invoke:
+Download [`openevolve-scientist.zip`](https://github.com/xs271828/openevolve-scientist/releases/latest/download/openevolve-scientist.zip), unzip the `openevolve-scientist/` folder into your Codex skills directory, and start a new Codex task. Then invoke:
 
 ```text
 $openevolve-scientist
 ```
 
-The Skill guides Codex through:
+The default `codex-native` path uses the current Codex model as the algorithm-candidate agent and a local Python evaluator. It does not require an API key, a second model client, Docker, or an OpenEvolve installation. The Skill guides Codex through:
 
 1. initializing a structured experiment;
-2. configuring OpenAI-compatible, Claude Code, or manual model backends;
+2. generating bounded candidates in the current Codex session, or configuring OpenAI-compatible, Claude Code, or manual model backends for external OpenEvolve runs;
 3. validating the evaluator, public interface, context, resources, evidence, and budget;
-4. running or resuming OpenEvolve safely;
+4. evaluating native candidates locally, or running/resuming OpenEvolve safely;
 5. comparing candidates on held-out data and multiple seeds;
 6. generating a research report with ablations, failures, limitations, and claim status.
 
@@ -43,7 +43,14 @@ The Skill archive intentionally excludes this repository README, CI configuratio
 
 ## Generic CLI
 
-Any AI agent or human workflow that can execute Python and edit files can use the core CLI. Use Python 3.10+ and install the pinned external engine in an isolated environment:
+Any AI agent or human workflow that can execute Python and edit files can use the core CLI. For the Codex-native path, no external engine is needed:
+
+```text
+python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name example --backend codex-native
+python skill/openevolve-scientist/scripts/openevolve_skill.py validate experiment --for-run --mode host
+```
+
+For unattended external OpenEvolve runs, use Python 3.10+ and install the pinned engine in an isolated environment:
 
 ```text
 python -m pip install openevolve==0.3.2
@@ -58,6 +65,7 @@ For an OpenAI-compatible backend, set the model name, API base, minimum model co
 
 | Backend | Typical models and services | Credentials | Execution |
 |---|---|---|---|
+| `codex-native` | The active Codex model in the current Codex task | None | Codex host + local evaluator |
 | `openai-compatible` | OpenAI, OpenRouter, LiteLLM, Ollama, vLLM, and compatible Gemini endpoints | One or more environment variables | Host or Docker |
 | `claude-code` | Models available through an authenticated Claude Code CLI | Claude CLI session | Host only in V1 |
 | `manual` | Any model, agent, or human process that answers queue files | None | Host or Docker |
@@ -111,7 +119,7 @@ OpenEvolve Scientist 是面向 Codex 和其他可执行 Python 的 AI Agent 的 
 
 “Scientist”描述的是科研流程，不表示它能够自主完成科学研究。它不是“保证发明新算法”的工具，也不是 AlphaEvolve 或 OpenEvolve 官方组件。所谓模型通用，是指支持 OpenAI-compatible 接口、Claude Code 和 manual queue；不兼容这些入口的模型需要通过网关或外部执行器连接。
 
-安装 Release 中的 Codex Skill 后调用：
+将 Release 中的 `openevolve-scientist/` 文件夹放入 Codex skills 目录，开始一个新的 Codex 任务后调用：
 
 ```text
 $openevolve-scientist
@@ -122,6 +130,8 @@ $openevolve-scientist
 ```text
 python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name 示例 --backend manual
 ```
+
+默认的 `codex-native` 模式直接使用当前 Codex 作为候选算法 Agent，不需要外部 API；`manual`、`openai-compatible` 和 `claude-code` 用于外部 OpenEvolve 搜索。
 
 开始实验前必须阅读局限性说明，并在最终报告中完成任务特定的有效性威胁审计。
 

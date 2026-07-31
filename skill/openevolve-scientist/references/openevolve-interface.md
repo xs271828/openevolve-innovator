@@ -12,15 +12,18 @@ This skill calls OpenEvolve as an external dependency and does not redistribute 
 
 ## Model backends
 
-The runner exposes three transport profiles:
+The runner exposes one Codex-native agent profile and three external OpenEvolve transport profiles:
 
 | Backend | OpenEvolve configuration | Credentials | Docker |
 |---|---|---|---|
+| `codex-native` | `codex_native.enabled: true`; OpenEvolve is not launched | None; the active Codex session generates candidates | Not used for model calls |
 | `openai-compatible` | `provider: openai` plus `api_base` | One or more `${ENV_VAR}` references | Supported |
 | `claude-code` | `provider: claude_code` | Authenticated `claude` CLI session | Host-only in the current implementation |
 | `manual` | `manual_mode: true` | None; answers arrive through the manual queue | Supported |
 
 OpenAI-compatible endpoints cover many hosted gateways and local servers, but providers may differ in parameter support, token accounting, context handling, errors, and reproducibility. Unknown provider names are rejected because OpenEvolve 0.3.2 otherwise falls back to its OpenAI backend.
+
+In `codex-native`, the Python runner does not call Codex through an API and does not launch an OpenEvolve subprocess. The active Codex task follows the Skill workflow, writes bounded candidate programs, runs the local evaluator, and records `results/codex_native_trace.jsonl`. This mode is available only when the host is running Codex; a generic Python process cannot recreate that session bridge.
 
 Manual mode removes the API transport requirement; it does not remove model constraints. Set `model_context.minimum_context_window_tokens` to the smallest context window of the model or agent that will actually answer queue requests. Set `estimated_cost_per_iteration_usd: 0` only when the responder is a reviewed local model, an unbilled human workflow, or another setup with no marginal billed cost; otherwise use a conservative upper-bound estimate.
 
@@ -61,7 +64,7 @@ Use `evaluate_stage1`, `evaluate_stage2`, and optionally `evaluate_stage3` only 
 
 ## Configuration requirements
 
-- Declare at least one model under `llm.models`.
+- Declare at least one model under `llm.models` for external OpenEvolve backends. In `codex-native`, set `codex_native.enabled: true`; an external LLM model list is intentionally not required.
 - Use only `openai`, `claude_code`, or `manual_mode`; do not rely on provider fallback.
 - Use environment variables for credentials. Never place API keys in YAML.
 - Set `random_seed` and `database.random_seed`.
