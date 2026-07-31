@@ -9,16 +9,13 @@ convergence_threshold: 0.0001
 early_stopping_metric: "combined_score"
 
 # MODEL-BACKEND-START
+codex_native:
+  enabled: true
+  model: "codex-current-session"
+  external_api_required: false
 llm:
-  provider: "openai"
-  api_base: "REPLACE_WITH_OPENAI_COMPATIBLE_BASE_URL"
-  api_key: "${MODEL_API_KEY}"
-  temperature: 0.7
-  max_tokens: 8192
-  timeout: 120
-  models:
-    - name: "REPLACE_WITH_MODEL"
-      weight: 1.0
+  # The active Codex agent supplies candidates in codex-native mode.
+  models: []
 # MODEL-BACKEND-END
 
 prompt:
