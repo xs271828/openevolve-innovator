@@ -710,9 +710,30 @@ def claude_cli_status() -> dict[str, Any]:
     return status
 
 
+def codex_cli_executable() -> str | None:
+    """Prefer the user-installed CLI over the WindowsApps desktop-app stub."""
+    candidates: list[Path] = []
+    app_data = os.environ.get("APPDATA")
+    if app_data:
+        candidates.append(Path(app_data) / "npm" / "codex.cmd")
+        candidates.append(Path(app_data) / "npm" / "codex.exe")
+    for suffix in ("", ".cmd", ".exe"):
+        discovered = shutil.which(f"{CODEX_CLI_COMMAND}{suffix}")
+        if discovered:
+            candidates.append(Path(discovered))
+    for candidate in candidates:
+        try:
+            candidate_is_file = candidate.is_file()
+        except OSError:
+            candidate_is_file = False
+        if candidate_is_file and "\\WindowsApps\\" not in str(candidate):
+            return str(candidate)
+    return None
+
+
 def codex_cli_status() -> dict[str, Any]:
     """Check the standalone Codex CLI without exposing login material."""
-    executable = shutil.which(CODEX_CLI_COMMAND)
+    executable = codex_cli_executable()
     status: dict[str, Any] = {
         "installed": bool(executable),
         "executable": executable,
@@ -2453,6 +2474,11 @@ def run_evolution(args: argparse.Namespace, resume: bool) -> int:
             host_environment["OPENEVO_GUARD_ENFORCE_SIGNATURES"] = (
                 "1" if enforce_contract else "0"
             )
+            if "codex-cli" in model_runtime.get("backend_types", []):
+                codex_executable = codex_cli_executable()
+                if not codex_executable:
+                    raise SkillError("codex-cli executable disappeared after preflight")
+                host_environment["OPENEVOLVE_CODEX_CLI"] = codex_executable
             evolution_started = True
             result = run_timed_process(
                 command,

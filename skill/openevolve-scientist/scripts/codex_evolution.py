@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Sequence
 
 
 CODEX_COMMAND = "codex"
+CODEX_EXECUTABLE_ENV = "OPENEVOLVE_CODEX_CLI"
 DEFAULT_MODEL_NAMES = {"", "default", "codex-default", "codex-current-session"}
 logger = logging.getLogger(__name__)
 
@@ -124,7 +125,7 @@ the parent OpenEvolve process performs evaluation and records the trace."""
 def codex_exec_command(model: str | None = None) -> list[str]:
     """Return a non-interactive, read-only Codex invocation with no API key argv."""
     command = [
-        CODEX_COMMAND,
+        codex_executable(),
         "exec",
         "--ephemeral",
         "--sandbox",
@@ -135,6 +136,33 @@ def codex_exec_command(model: str | None = None) -> list[str]:
         command.extend(["--model", model.strip()])
     command.append("-")
     return command
+
+
+def codex_executable() -> str:
+    configured = os.environ.get(CODEX_EXECUTABLE_ENV)
+    if configured and Path(configured).is_file():
+        return configured
+
+    # The desktop app may put a protected WindowsApps stub first on PATH.  A
+    # user-installed standalone CLI is the runnable command for child runs.
+    app_data = os.environ.get("APPDATA")
+    if app_data:
+        npm_cli = Path(app_data) / "npm" / "codex.cmd"
+        try:
+            npm_cli_exists = npm_cli.is_file()
+        except OSError:
+            # A restricted preflight sandbox may not be allowed to stat the
+            # user profile.  The real child process receives the resolved
+            # executable from the runner when it can inspect that location.
+            npm_cli_exists = False
+        if npm_cli_exists:
+            return str(npm_cli)
+
+    for suffix in ("", ".cmd", ".exe"):
+        discovered = shutil.which(f"{CODEX_COMMAND}{suffix}")
+        if discovered and "\\WindowsApps\\" not in discovered:
+            return discovered
+    return CODEX_COMMAND
 
 
 async def stop_process(process: asyncio.subprocess.Process) -> None:
@@ -171,7 +199,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
 
 
 async def run(args: argparse.Namespace) -> int:
-    if not shutil.which(CODEX_COMMAND):
+    executable = codex_executable()
+    if executable == CODEX_COMMAND and not shutil.which(CODEX_COMMAND):
         raise RuntimeError("Codex CLI was not found on PATH")
     from openevolve import OpenEvolve
     from openevolve.config import load_config

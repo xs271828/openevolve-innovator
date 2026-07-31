@@ -30,7 +30,7 @@ Download [`openevolve-scientist.zip`](https://github.com/xs271828/openevolve-sci
 $openevolve-scientist
 ```
 
-The default `codex-cli` path uses a separately installed and saved-login Codex CLI as the automatic per-generation mutation model. It requires no external API key or model gateway, but it does require `openevolve==0.3.2`, `codex login`, and an account with available Codex usage. The child CLI runs are separate non-interactive tasks: they do not inherit this chat's hidden state. The Skill guides Codex through:
+The default `codex-cli` path uses a separately installed and saved-login Codex CLI as the automatic per-generation mutation model. It requires no external API key or model gateway, but it does require `openevolve==0.3.2`, `codex login`, and an account with available Codex usage. On Windows, the runner prefers the runnable user-installed CLI under `%APPDATA%\\npm` and ignores the protected desktop-app stub under `WindowsApps`. The child CLI runs are separate non-interactive tasks: they do not inherit this chat's hidden state. The Skill guides Codex through:
 
 1. initializing a structured experiment;
 2. automatically running bounded Codex-driven OpenEvolve searches, or configuring the legacy in-session, OpenAI-compatible, Claude Code, or manual backends;
@@ -121,7 +121,7 @@ Existing experiment directories remain compatible because the CLI subcommands, `
 
 OpenEvolve Scientist 是面向 Codex 和其他可执行 Python 的 AI Agent 的 OpenEvolve 科研工作流。默认 `codex-cli` 后端会通过已登录的独立 Codex CLI，为每一代 OpenEvolve 搜索自动生成候选变异；工作流同时提供可复现基线、留出集验证、多随机种子复测、消融、预算、接口契约、失败分析和新颖性审计。
 
-“Scientist”描述的是科研流程，不表示它能够自主完成科学研究。它不是“保证发明新算法”的工具，也不是 AlphaEvolve 或 OpenEvolve 官方组件。`codex-cli` 不需要外部 API Key，但需要安装独立 Codex CLI、完成 `codex login` 且账号仍有可用额度；每次变异是独立 CLI 任务，不能继承当前聊天的隐藏上下文。所谓模型通用，是指支持 Codex CLI、OpenAI-compatible 接口、Claude Code 和 manual queue；不兼容这些入口的模型需要通过网关或外部执行器连接。
+“Scientist”描述的是科研流程，不表示它能够自主完成科学研究。它不是“保证发明新算法”的工具，也不是 AlphaEvolve 或 OpenEvolve 官方组件。`codex-cli` 不需要外部 API Key，但需要安装独立 Codex CLI、完成 `codex login` 且账号仍有可用额度；Windows 会优先使用 `%APPDATA%\\npm` 中可运行的 CLI，并跳过受限的 `WindowsApps` 桌面应用 stub。每次变异是独立 CLI 任务，不能继承当前聊天的隐藏上下文。所谓模型通用，是指支持 Codex CLI、OpenAI-compatible 接口、Claude Code 和 manual queue；不兼容这些入口的模型需要通过网关或外部执行器连接。
 
 将 Release 中的 `openevolve-scientist/` 文件夹放入 Codex skills 目录，开始一个新的 Codex 任务后调用：
 
