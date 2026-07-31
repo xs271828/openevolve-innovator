@@ -32,7 +32,8 @@ PINNED_OPENEVOLVE_VERSION = "0.3.2"
 HOST_ENTRYPOINT_MODULE = "openevolve.cli"
 CONSOLE_ENTRYPOINT_NAME = "openevolve-run"
 CONSOLE_ENTRYPOINT_TARGET = "openevolve.cli:main"
-BACKEND_CHOICES = ("codex-native", "openai-compatible", "claude-code", "manual")
+BACKEND_CHOICES = ("codex-cli", "codex-native", "openai-compatible", "claude-code", "manual")
+CODEX_CLI_COMMAND = "codex"
 ENV_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 ENV_REFERENCE_RE = re.compile(r"^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$")
 SKILL_DIR = Path(__file__).resolve().parents[1]
@@ -404,11 +405,13 @@ def resolve_model_runtime(
             backend = "manual"
         elif provider in {None, "", "openai"}:
             backend = "openai-compatible"
+        elif provider == "codex_cli":
+            backend = "codex-cli"
         elif provider == "claude_code":
             backend = "claude-code"
         else:
             errors.append(
-                f"Unsupported llm provider {provider!r}; use openai, claude_code, or manual_mode"
+                f"Unsupported llm provider {provider!r}; use openai, codex_cli, claude_code, or manual_mode"
             )
             backend = "invalid"
         backends.add(backend)
@@ -461,6 +464,14 @@ def resolve_model_runtime(
                     )
                 if mode == "docker" and hostname == "host.docker.internal":
                     requires_host_gateway = True
+        elif backend == "codex-cli":
+            record["api_base"] = None
+            if explicit_api_key is not None or top_api_key is not None:
+                errors.append("codex-cli uses saved Codex CLI authentication; remove llm.api_key")
+            if mode == "docker":
+                errors.append(
+                    "codex-cli backend is host-only; use --mode host. Docker cannot safely reuse the host Codex login."
+                )
         elif backend == "claude-code":
             record["api_base"] = None
             if mode == "docker":
@@ -699,6 +710,55 @@ def claude_cli_status() -> dict[str, Any]:
     return status
 
 
+def codex_cli_status() -> dict[str, Any]:
+    """Check the standalone Codex CLI without exposing login material."""
+    executable = shutil.which(CODEX_CLI_COMMAND)
+    status: dict[str, Any] = {
+        "installed": bool(executable),
+        "executable": executable,
+        "authenticated": False,
+        "exec_help_ok": False,
+        "supports_required_exec_flags": False,
+    }
+    if not executable:
+        return status
+    try:
+        help_result = subprocess.run(
+            [executable, "exec", "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        help_text = (help_result.stdout or "") + "\n" + (help_result.stderr or "")
+        status["exec_help_ok"] = help_result.returncode == 0
+        status["supports_required_exec_flags"] = all(
+            flag in help_text
+            for flag in ("--ephemeral", "--sandbox", "--skip-git-repo-check")
+        )
+        status["exec_help_returncode"] = help_result.returncode
+        if help_result.returncode != 0:
+            status["error"] = ((help_result.stderr or help_result.stdout) or "").strip()[:300]
+            return status
+        if not status["supports_required_exec_flags"]:
+            status["error"] = "Codex CLI is too old for the required read-only non-interactive flags"
+            return status
+        login_result = subprocess.run(
+            [executable, "login", "status"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        status["authenticated"] = login_result.returncode == 0
+        status["login_returncode"] = login_result.returncode
+        if login_result.returncode != 0:
+            status["error"] = ((login_result.stderr or login_result.stdout) or "").strip()[:300]
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        status["error"] = str(exc)
+    return status
+
+
 def docker_smoke_status(context: Path) -> dict[str, Any]:
     docker = docker_status()
     if not docker.get("server_available"):
@@ -759,9 +819,15 @@ def doctor_data(
         else set()
     )
     claude = claude_cli_status() if "claude-code" in backend_types else None
+    codex = codex_cli_status() if "codex-cli" in backend_types else None
     provider_ready = credential_ready
     if claude is not None:
         provider_ready = provider_ready and bool(claude.get("authenticated"))
+    if codex is not None:
+        provider_ready = provider_ready and bool(
+            codex.get("authenticated") and codex.get("exec_help_ok")
+            and codex.get("supports_required_exec_flags")
+        )
     if isinstance(model_runtime, dict) and model_runtime.get("errors"):
         provider_ready = False
     docker_provider_ready = credential_ready
@@ -770,6 +836,16 @@ def doctor_data(
     native_ready = bool(
         isinstance(model_runtime, dict)
         and model_runtime.get("native_mode")
+        and not model_runtime.get("errors")
+    )
+    codex_cli_ready = bool(
+        isinstance(model_runtime, dict)
+        and "codex-cli" in backend_types
+        and version == PINNED_OPENEVOLVE_VERSION
+        and codex is not None
+        and codex.get("authenticated")
+        and codex.get("exec_help_ok")
+        and codex.get("supports_required_exec_flags")
         and not model_runtime.get("errors")
     )
     smoke = docker_smoke_status(
@@ -797,6 +873,7 @@ def doctor_data(
         "required_credential_environments": required_envs,
         "model_runtime": model_runtime,
         "claude_cli": claude,
+        "codex_cli": codex,
         "ready_for_docker": bool(
             docker["server_available"]
             and docker_provider_ready
@@ -808,6 +885,7 @@ def doctor_data(
             and provider_ready
         ),
         "ready_for_codex_native": native_ready,
+        "ready_for_codex_cli": codex_cli_ready,
     }
     if experiment:
         data["experiment"] = str(experiment)
@@ -822,7 +900,12 @@ def command_doctor(args: argparse.Namespace) -> int:
         docker_smoke=bool(getattr(args, "docker_smoke", False)),
     )
     emit(data)
-    return 0 if data.get("ready_for_docker") or data.get("ready_for_host") or data.get("ready_for_codex_native") else 2
+    return 0 if (
+        data.get("ready_for_docker")
+        or data.get("ready_for_host")
+        or data.get("ready_for_codex_native")
+        or data.get("ready_for_codex_cli")
+    ) else 2
 
 
 def render_model_backend(
@@ -847,6 +930,22 @@ codex_native:
 llm:
   # The active Codex agent supplies candidates; OpenEvolve is not launched in native mode.
   models: []
+# MODEL-BACKEND-END"""
+
+    if backend == "codex-cli":
+        selected_model = model or "default"
+        return f"""# MODEL-BACKEND-START
+llm:
+  # A wrapper injects the saved-login Codex CLI client at runtime.
+  provider: "codex_cli"
+  temperature: 0.7
+  max_tokens: 8192
+  timeout: 300
+  retries: 2
+  retry_delay: 5
+  models:
+    - name: {json.dumps(selected_model)}
+      weight: 1.0
 # MODEL-BACKEND-END"""
 
     if backend == "openai-compatible":
@@ -917,7 +1016,7 @@ def configure_initialized_backend(
 
 def command_init(args: argparse.Namespace) -> int:
     target = resolve_experiment(args.experiment, require_exists=False)
-    backend = getattr(args, "backend", "codex-native")
+    backend = getattr(args, "backend", "codex-cli")
     if target.exists() and any(target.iterdir()):
         raise SkillError(f"Refusing to initialize non-empty directory: {target}")
     target.mkdir(parents=True, exist_ok=True)
@@ -957,8 +1056,8 @@ def command_init(args: argparse.Namespace) -> int:
                 "Review config.yaml model settings and references/limitations.md in the skill.",
                 "Replace the baseline and evaluator TODOs.",
                 "Document prior art and record at least three baseline runs.",
-                "For codex-native, let the active Codex agent generate candidates and record each local evaluation in results/codex_native_trace.jsonl; do not call run.",
-                f'"{sys.executable}" "{Path(__file__).resolve()}" validate "{target}" --for-run',
+                "For codex-cli, run the saved-login Codex CLI on the host; it will generate every OpenEvolve candidate automatically.",
+                f'"{sys.executable}" "{Path(__file__).resolve()}" validate "{target}" --for-run --mode host',
             ],
         }
     )
@@ -1920,7 +2019,22 @@ def host_command(
     target_score: float | None,
     checkpoint: Path | None,
     effective_config: Path | None = None,
+    model_runtime: dict[str, Any] | None = None,
 ) -> list[str]:
+    runtime = model_runtime or resolve_model_runtime(root, mode="host")
+    if "codex-cli" in runtime.get("backend_types", []):
+        return [
+            sys.executable,
+            str(SKILL_DIR / "scripts" / "codex_evolution.py"),
+            *common_evolution_args(
+                root,
+                False,
+                iterations,
+                target_score,
+                checkpoint,
+                effective_config,
+            ),
+        ]
     return [
         sys.executable,
         "-m",
@@ -2207,6 +2321,18 @@ def run_evolution(args: argparse.Namespace, resume: bool) -> int:
             raise SkillError("claude-code backend requires the claude CLI on the host")
         if not claude.get("authenticated"):
             raise SkillError("claude-code backend requires an authenticated claude CLI session")
+    if "codex-cli" in model_runtime.get("backend_types", []) and not args.dry_run:
+        codex = codex_cli_status()
+        if not codex.get("installed"):
+            raise SkillError(
+                "codex-cli backend requires a standalone Codex CLI. Install it, then run `codex login`."
+            )
+        if not codex.get("exec_help_ok"):
+            raise SkillError("codex-cli backend requires a Codex CLI with the `exec` command")
+        if not codex.get("supports_required_exec_flags"):
+            raise SkillError("codex-cli backend requires a current Codex CLI with read-only exec flags")
+        if not codex.get("authenticated"):
+            raise SkillError("codex-cli backend requires `codex login`; no external API key is required")
 
     if args.mode == "host":
         if not args.acknowledge_host_risk:
@@ -2218,14 +2344,19 @@ def run_evolution(args: argparse.Namespace, resume: bool) -> int:
             raise SkillError(
                 f"Host mode requires openevolve=={PINNED_OPENEVOLVE_VERSION}; found {version or 'not installed'}"
             )
-        if not args.dry_run:
+        if not args.dry_run and "codex-cli" not in model_runtime.get("backend_types", []):
             entrypoints = openevolve_entrypoint_status()
             if not entrypoints["host_module"]["help_probe"].get("ok"):
                 raise SkillError(
                     f"Host entrypoint {HOST_ENTRYPOINT_MODULE} failed its --help probe"
                 )
         command = host_command(
-            root, iterations, target_score, checkpoint, effective_config
+            root,
+            iterations,
+            target_score,
+            checkpoint,
+            effective_config,
+            model_runtime,
         )
         if args.dry_run:
             emit(
@@ -2987,7 +3118,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument(
         "--backend",
         choices=BACKEND_CHOICES,
-        default="codex-native",
+        default="codex-cli",
         help="Model transport profile",
     )
     init.add_argument("--model", help="Initial model name for the selected backend")

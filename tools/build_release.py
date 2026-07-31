@@ -29,6 +29,7 @@ EXCLUDED_NAMES = {
     "openevolve_output",
 }
 EXCLUDED_SUFFIXES = {".pyc", ".pyo"}
+EXCLUDED_PREFIXES = (".tmp-",)
 SECRET_PATTERNS = (
     re.compile(r"\bsk-[A-Za-z0-9_-]{16,}\b"),
     re.compile(r"\bAIza[A-Za-z0-9_-]{20,}\b"),
@@ -50,7 +51,10 @@ LEGACY_README_SECTION = re.compile(
 def iter_files(root: Path):
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root)
-        if any(part in EXCLUDED_NAMES for part in relative.parts):
+        if any(
+            part in EXCLUDED_NAMES or part.startswith(EXCLUDED_PREFIXES)
+            for part in relative.parts
+        ):
             continue
         if path.is_file() and path.suffix.lower() not in EXCLUDED_SUFFIXES:
             yield path

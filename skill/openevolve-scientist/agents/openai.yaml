@@ -1,4 +1,4 @@
 interface:
   display_name: "OpenEvolve Scientist"
-  short_description: "Discover and validate algorithms with Codex"
-  default_prompt: "Use $openevolve-scientist in codex-native mode to generate bounded algorithm candidates, evaluate them locally, and return a reproducible, evidence-backed result without an external API."
+  short_description: "Automatically evolve and validate algorithms with Codex"
+  default_prompt: "Use $openevolve-scientist in codex-cli mode to run a bounded, automatic OpenEvolve algorithm search with the saved-login Codex CLI, local evaluation, holdout validation, and an evidence-backed final report."

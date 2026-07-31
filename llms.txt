@@ -1,6 +1,6 @@
 # OpenEvolve Scientist
 
-> A Codex Skill and platform-neutral CLI for reproducible OpenEvolve-based algorithm discovery, evolutionary coding, candidate validation, ablation studies, budget control, and novelty auditing.
+> A Codex Skill and platform-neutral CLI for reproducible OpenEvolve-based algorithm discovery, evolutionary coding, candidate validation, ablation studies, budget control, and novelty auditing. Its default saved-login Codex CLI backend automatically supplies OpenEvolve mutations without an external API key.
 
 OpenEvolve Scientist is a research workflow and governance layer around the external OpenEvolve engine. “Scientist” does not claim autonomous scientific ability. The project does not implement AlphaEvolve, does not guarantee discovery of a novel algorithm, and requires independent evidence before claims are upgraded.
 
@@ -13,12 +13,12 @@ This is an experimental machine-readable index following the llms.txt proposal. 
 - [Codex Skill instructions](https://github.com/xs271828/openevolve-scientist/blob/main/skill/openevolve-scientist/SKILL.md): Agent workflow and invocation contract.
 - [Core CLI](https://github.com/xs271828/openevolve-scientist/blob/main/skill/openevolve-scientist/scripts/openevolve_skill.py): Platform-neutral experiment runner.
 
-## Codex-native mode
+## Codex CLI automatic evolution
 
-- The default `codex-native` backend uses the active Codex model as the candidate-generation agent and a local Python evaluator.
-- It requires no API key, external model client, Docker, or OpenEvolve installation.
-- It is an agent-managed bounded loop, not a Python script that recursively calls the current Codex session.
-- External OpenEvolve backends remain available through `openai-compatible`, `claude-code`, and `manual`.
+- The default `codex-cli` backend starts a read-only saved-login `codex exec` process for each OpenEvolve generation.
+- It requires `openevolve==0.3.2`, a standalone authenticated Codex CLI, and available account usage, but no external API key or model gateway.
+- Each child run is a separate non-interactive task. It does not recursively reuse the parent desktop chat's hidden state.
+- The legacy `codex-native` loop and external `openai-compatible`, `claude-code`, and `manual` backends remain available.
 
 ## Research workflow
 
@@ -34,7 +34,8 @@ This is an experimental machine-readable index following the llms.txt proposal. 
 ## Boundaries
 
 - Candidate improvements are not proof of research novelty.
-- OpenEvolve Scientist is not autonomous and does not implement, reproduce, or claim affiliation with AlphaEvolve or OpenEvolve.
+- OpenEvolve Scientist is not autonomous research and does not implement, reproduce, or claim affiliation with AlphaEvolve or OpenEvolve.
+- Codex CLI quotas, model changes, and service availability can interrupt automatic evolution; iteration and wall-time limits are more reliable than an exact subscription-dollar estimate.
 - OpenAI-compatible endpoints share an approximate API shape, not identical model behavior.
 - Docker reduces host exposure but is not a complete sandbox.
 - Host execution provides no file, network, process, memory, or CPU isolation.

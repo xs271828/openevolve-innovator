@@ -34,5 +34,7 @@ runtime:
 budget:
   max_iterations: 50
   max_wall_time_minutes: 120
-  max_estimated_cost_usd: 10
+  # Codex subscription/account usage is not a metered API invoice exposed to this skill.
+  # Control Codex CLI runs with iteration and wall-time limits unless you have a reviewed estimate.
+  max_estimated_cost_usd: null
   estimated_cost_per_iteration_usd: null
