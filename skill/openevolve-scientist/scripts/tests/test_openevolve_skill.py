@@ -1138,7 +1138,8 @@ The closest methods, code overlaps, and remaining differences were audited.
 class CodexEvolutionAdapterTests(unittest.TestCase):
     def test_default_command_is_read_only_and_does_not_take_api_credentials(self) -> None:
         command = codex_evolution.codex_exec_command("default")
-        self.assertEqual(command[:2], ["codex", "exec"])
+        self.assertEqual(command[1], "exec")
+        self.assertNotIn("\\WindowsApps\\", command[0])
         self.assertIn("--sandbox", command)
         self.assertIn("read-only", command)
         self.assertIn("--ephemeral", command)
@@ -1148,6 +1149,15 @@ class CodexEvolutionAdapterTests(unittest.TestCase):
     def test_named_model_is_forwarded_to_codex_cli(self) -> None:
         command = codex_evolution.codex_exec_command("gpt-5")
         self.assertEqual(command[command.index("--model") + 1], "gpt-5")
+
+    def test_configured_codex_executable_overrides_windowsapps_path(self) -> None:
+        configured = str(Path(self._testMethodName).resolve())
+        with mock.patch.dict(
+            os.environ,
+            {codex_evolution.CODEX_EXECUTABLE_ENV: configured},
+            clear=False,
+        ), mock.patch.object(codex_evolution.Path, "is_file", return_value=True):
+            self.assertEqual(codex_evolution.codex_executable(), configured)
 
     def test_prompt_preserves_evolution_response_contract(self) -> None:
         prompt = codex_evolution.compose_prompt(
