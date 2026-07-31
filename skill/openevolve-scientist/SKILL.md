@@ -1,65 +1,62 @@
 ---
 name: openevolve-scientist
-description: Use the active Codex model or an optional external backend to discover, test, and audit candidate algorithms with reproducible OpenEvolve research workflows. Use when an AI coding agent needs to define an executable optimization problem, build baselines and evaluators, generate algorithm candidates, run local scoring, perform holdout validation and ablations, control resources and budgets, or assess novelty without overstating the evidence.
+description: Run reproducible, auditable OpenEvolve algorithm-discovery experiments. By default, use the saved-login Codex CLI as the automatic mutation backend, then validate candidates with baselines, holdout data, ablations, budgets, and novelty audits without overstating evidence.
 ---
 
 # OpenEvolve Scientist
 
-Turn an algorithm question into a bounded, reproducible, auditable candidate-discovery experiment. Read [limitations.md](references/limitations.md) before starting and before writing conclusions. “Scientist” describes the workflow role; it does not mean autonomous scientific ability, prove novelty, or guarantee a new algorithm.
+Turn an algorithm question into a bounded, reproducible candidate-discovery experiment. Read [limitations.md](references/limitations.md) before starting and before writing conclusions. “Scientist” describes a research workflow: it does not prove novelty or guarantee a new algorithm.
 
-## Default: use the active Codex model
+## Default: automatic Codex-driven evolution
 
-For a normal Codex request, use `codex-native`. This mode does not need an API key, model name, gateway, Docker, or a second model client. The current Codex agent is the candidate generator and reasoning controller; Python is the local evaluator.
-
-Use the runner to create and inspect the experiment:
+For a normal Codex task, use `codex-cli`. It launches the separately installed, saved-login Codex CLI once per OpenEvolve generation. OpenEvolve then selects parents, receives diffs or rewrites, evaluates candidates, writes traces, checkpoints, and supports resume. It uses no external API key.
 
 ```text
-python <SKILL_DIR>/scripts/openevolve_skill.py init <experiment-dir> --name "<name>" --backend codex-native
+python <SKILL_DIR>/scripts/openevolve_skill.py init <experiment-dir> --name "<name>" --backend codex-cli
+python <SKILL_DIR>/scripts/openevolve_skill.py doctor <experiment-dir>
 python <SKILL_DIR>/scripts/openevolve_skill.py validate <experiment-dir> --for-run --mode host
-```
-
-Prefer the existing Anaconda/conda environment for local evaluation. Do not create environments or install packages without approval. The native mode is an agent-managed bounded loop, not an unattended OpenEvolve subprocess and not a recursive call to Codex.
-
-When the user gives a problem, perform the work in the current task:
-
-1. Define the objective, constraints, search/holdout split, context/code budget, and stopping budget in the experiment files.
-2. Read the limitations and research protocol. Search papers, code, and strong baselines when novelty or research claims matter; record dated sources.
-3. Implement or inspect `initial_program.py` and `evaluator.py`. Keep intended mutations inside `EVOLVE-BLOCK`; preserve the public signature contract.
-4. Run the unchanged baseline on at least three declared search seeds. Never use holdout labels during search.
-5. Generate a small, bounded set of candidate programs yourself as the active Codex model. Each candidate must have a concrete hypothesis and a short mutation description. Do not claim that OpenEvolve generated it unless an external OpenEvolve run actually did.
-6. Run the evaluator locally for every candidate, record one JSON line per candidate in `results/codex_native_trace.jsonl`, keep the best program, and stop when the configured iteration, wall-clock, or cost estimate is exhausted. Treat native model cost as unmeasured unless the user supplies an explicit accounting rule.
-7. Re-test the selected candidate and baselines on holdout data and multiple seeds only after search is frozen. Run component ablations and failure analysis.
-8. Write `results/summary.json`, `research_report.md`, and the required comparison/ablation files. Return the final answer with the candidate, measured evidence, reproduction command, and limitations. If required gates are incomplete, call it a provisional candidate improvement.
-
-The runner's `run` and `resume` commands intentionally do not launch OpenEvolve for `codex-native`; they return guidance to follow this loop. Do not switch to an external API merely to make those commands run.
-
-## Optional external OpenEvolve modes
-
-Use the runner's other backends only when the user explicitly wants an unattended or separately hosted search:
-
-```text
-python <SKILL_DIR>/scripts/openevolve_skill.py doctor
-python <SKILL_DIR>/scripts/openevolve_skill.py init <experiment-dir> --name "<name>" --backend <openai-compatible|claude-code|manual>
-python <SKILL_DIR>/scripts/openevolve_skill.py validate <experiment-dir> --for-run
-python <SKILL_DIR>/scripts/openevolve_skill.py run <experiment-dir>
-python <SKILL_DIR>/scripts/openevolve_skill.py resume <experiment-dir> --checkpoint <path>
+python <SKILL_DIR>/scripts/openevolve_skill.py run <experiment-dir> --mode host --acknowledge-host-risk
+python <SKILL_DIR>/scripts/openevolve_skill.py resume <experiment-dir> --mode host --checkpoint <checkpoint> --acknowledge-host-risk
 python <SKILL_DIR>/scripts/openevolve_skill.py summarize <experiment-dir>
 ```
 
-Use `openai-compatible` for cloud APIs, gateways, Ollama, or vLLM; `claude-code` only in acknowledged host mode with an authenticated Claude CLI; and `manual` for a file queue. Never place credential values in configuration, logs, prompts, or candidate code. OpenAI compatibility does not imply identical model behavior. Use the Python environment containing the pinned `openevolve==0.3.2`; do not install it without approval.
+`doctor` must find a standalone `codex` executable with `codex exec` and a successful `codex login status`. The child CLI has its own saved login; it does **not** recursively reuse this chat's hidden state. It runs read-only and returns only the OpenEvolve mutation response; the parent OpenEvolve process owns evaluation and experiment files. Codex account quotas and rate limits still apply.
+
+Prefer the existing Anaconda/conda environment for local evaluation. Do not install packages or create environments without approval. `codex-cli` is host-only in V1 because Docker cannot safely reuse the host Codex login. Host execution of generated code requires explicit confirmation on every run.
+
+When the user gives a problem:
+
+1. Define one executable objective, hard constraints, a search/holdout split, context/code limits, and stop budgets.
+2. Read the research protocol and limitations. For research claims, record dated papers, code, and strong baselines.
+3. Implement or inspect `initial_program.py` and `evaluator.py`. Keep mutable code inside `EVOLVE-BLOCK`; preserve the public contract.
+4. Reproduce the unchanged baseline on at least three search seeds. Never use holdout labels during evolution.
+5. Run the automatic search only after `validate --for-run` passes. Monitor the trace and stop reason; do not silently enlarge limits or budgets.
+6. Freeze search, then compare the selected candidate and baselines on holdout data across the declared seeds. Run component ablations and failure analysis.
+7. Run `summarize` and report the candidate, measured evidence, reproduction command, stop reason, and limitations. Incomplete gates mean “candidate improvement,” not “new algorithm.”
+
+## Other backends and compatibility
+
+`codex-native` remains a legacy, in-session manual loop: the active agent writes and evaluates a small candidate set, and `run`/`resume` intentionally return guidance instead of starting OpenEvolve. It is not automatic evolution.
+
+Use other backends only when requested:
+
+```text
+python <SKILL_DIR>/scripts/openevolve_skill.py init <experiment-dir> --name "<name>" --backend <openai-compatible|claude-code|manual>
+```
+
+Use `openai-compatible` for cloud APIs, gateways, Ollama, or vLLM; `claude-code` only in acknowledged host mode with an authenticated Claude CLI; and `manual` for a file queue. Never put credential values in configuration, prompts, logs, or candidate code. Use the Python environment containing `openevolve==0.3.2`.
 
 ## Non-negotiable research and safety gates
 
-- Make correctness a hard evaluator gate; higher `combined_score` must always be better.
-- Reproduce the unchanged baseline before evolution and keep search data separate from holdout data.
-- Treat Docker as risk reduction, not a complete sandbox. Host execution requires explicit confirmation because candidate code can access host files, processes, network, and secrets.
-- Enforce the declared model context, code-growth, Docker resource, wall-clock, iteration, and estimated-cost budgets. A dollar limit is an estimate, not a provider billing hard limit.
+- Higher `combined_score` must always mean better, and correctness must be a hard evaluator gate.
+- Reproduce the unchanged baseline before evolution; keep search and holdout data separate.
+- Docker reduces risk but is not a complete sandbox. Host mode has no memory, CPU, file, network, or process isolation.
+- Enforce declared context, code-growth, iteration, wall-clock, and resource budgets. Codex subscription use has no exact per-call USD invoice in this workflow; do not claim otherwise.
 - Keep the public-signature guard enabled unless interface evolution is intentional and documented.
-- Do not infer novelty from a score, diversity, similarity, or MAP-Elites archive. Complete a dated paper/code/nearest-method audit before using “novel”.
-- If `research/limitations.md` still has TODOs, report only “candidate result; limitations audit incomplete”.
+- Do not infer novelty from score, code difference, diversity, or MAP-Elites. Complete a dated nearest-method audit before calling anything novel.
 
 ## Outputs
 
-Keep `openevolve_output/` only for real external OpenEvolve runs. Native runs use `results/codex_native_trace.jsonl`, `results/best_program.*`, `results/summary.json`, baseline and ablation CSVs, and `research_report.md`. All modes keep prior-art, novelty-audit, limitations, effective-config, budget, and provenance records when applicable. Match the report language requested in `problem.yaml`.
+Automatic `codex-cli` and external runs write `openevolve_output/`, including trace, checkpoints, and best program. All modes use `results/` for effective configuration, budget ledger, run manifest, summaries, comparisons, and ablations; use `research/` for prior art, novelty audit, and task-specific limitations.
 
-Before changing the evaluator or OpenEvolve configuration, read [openevolve-interface.md](references/openevolve-interface.md). Before making novelty claims, read [research-protocol.md](references/research-protocol.md).
+Before changing the evaluator or configuration, read [openevolve-interface.md](references/openevolve-interface.md). Before novelty claims, read [research-protocol.md](references/research-protocol.md).

@@ -21,6 +21,12 @@ assert SPEC and SPEC.loader
 skill = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(skill)
 
+CODEX_EVOLUTION_PATH = Path(__file__).resolve().parents[1] / "codex_evolution.py"
+CODEX_SPEC = importlib.util.spec_from_file_location("codex_evolution", CODEX_EVOLUTION_PATH)
+assert CODEX_SPEC and CODEX_SPEC.loader
+codex_evolution = importlib.util.module_from_spec(CODEX_SPEC)
+CODEX_SPEC.loader.exec_module(codex_evolution)
+
 
 class OpenEvolveSkillTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -126,6 +132,7 @@ STATUS: complete
 
     def test_init_renders_all_backend_profiles(self) -> None:
         cases = {
+            "codex-cli": ('provider: "codex_cli"', 'name: "default"'),
             "codex-native": ("codex_native:", "codex-current-session"),
             "openai-compatible": ('provider: "openai"', "${CUSTOM_MODEL_KEY}"),
             "claude-code": ('provider: "claude_code"', "sonnet"),
@@ -174,6 +181,71 @@ STATUS: complete
         self.assertEqual(runtime["backend_types"], ["codex-native"])
         self.assertTrue(runtime["native_mode"])
         self.assertEqual(runtime["credential_environment_names"], [])
+
+    def test_codex_cli_is_host_only_and_needs_no_api_key(self) -> None:
+        target = Path(self.temp.name) / "codex-cli"
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(
+                skill.command_init(
+                    Namespace(
+                        experiment=str(target),
+                        name="codex-cli",
+                        backend="codex-cli",
+                        model=None,
+                        api_base=None,
+                        credential_env=None,
+                    )
+                ),
+                0,
+            )
+        host = skill.resolve_model_runtime(target, mode="host", for_run=True)
+        docker = skill.resolve_model_runtime(target, mode="docker", for_run=True)
+        self.assertEqual(host["backend_types"], ["codex-cli"])
+        self.assertEqual(host["credential_environment_names"], [])
+        self.assertTrue(any("host-only" in error for error in docker["errors"]))
+
+    def test_codex_cli_host_dry_run_uses_wrapper(self) -> None:
+        target = Path(self.temp.name) / "codex-cli-dry-run"
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(
+                skill.command_init(
+                    Namespace(
+                        experiment=str(target),
+                        name="codex-cli-dry-run",
+                        backend="codex-cli",
+                        model=None,
+                        api_base=None,
+                        credential_env=None,
+                    )
+                ),
+                0,
+            )
+        original_root = self.root
+        self.root = target
+        self.make_valid_for_run()
+        self.root = original_root
+        payload = io.StringIO()
+        with mock.patch.object(
+            skill, "installed_openevolve_version", return_value=skill.PINNED_OPENEVOLVE_VERSION
+        ):
+            with contextlib.redirect_stdout(payload):
+                result = skill.run_evolution(
+                    Namespace(
+                        experiment=str(target),
+                        mode="host",
+                        iterations=1,
+                        target_score=None,
+                        docker_profile=None,
+                        docker_memory=None,
+                        docker_cpus=None,
+                        acknowledge_host_risk=True,
+                        dry_run=True,
+                        checkpoint=None,
+                    ),
+                    resume=False,
+                )
+        self.assertEqual(result, 0)
+        self.assertIn("codex_evolution.py", payload.getvalue())
 
     def test_native_run_returns_agent_guidance_without_starting_openevolve(self) -> None:
         target = Path(self.temp.name) / "native-run"
@@ -254,6 +326,41 @@ STATUS: complete
         self.assertEqual(data["required_credential_environments"], [])
         self.assertIsNone(data["required_credential_environment"])
         self.assertTrue(data["ready_for_host"])
+
+    def test_doctor_reports_saved_login_codex_cli_readiness(self) -> None:
+        target = Path(self.temp.name) / "codex-doctor"
+        with contextlib.redirect_stdout(io.StringIO()):
+            skill.command_init(
+                Namespace(
+                    experiment=str(target),
+                    name="codex-doctor",
+                    backend="codex-cli",
+                    model=None,
+                    api_base=None,
+                    credential_env=None,
+                )
+            )
+        with mock.patch.object(
+            skill, "installed_openevolve_version", return_value=skill.PINNED_OPENEVOLVE_VERSION
+        ), mock.patch.object(
+            skill, "docker_status", return_value={"installed": False, "server_available": False}
+        ), mock.patch.object(
+            skill, "openevolve_entrypoint_status", return_value={"ready": False}
+        ), mock.patch.object(
+            skill, "host_resource_snapshot", return_value={}
+        ), mock.patch.object(
+            skill,
+            "codex_cli_status",
+            return_value={
+                "installed": True,
+                "authenticated": True,
+                "exec_help_ok": True,
+                "supports_required_exec_flags": True,
+            },
+        ):
+            data = skill.doctor_data(target)
+        self.assertTrue(data["ready_for_codex_cli"])
+        self.assertEqual(data["model_runtime"]["credential_environment_names"], [])
 
     def test_entrypoint_registration_mismatch_is_not_ready(self) -> None:
         entries = SimpleNamespace(
@@ -718,6 +825,7 @@ STATUS: complete
         from openevolve.config import Config
 
         profiles = (
+            ("codex-cli", "default", None, None),
             ("openai-compatible", "fixture-model", "https://example.invalid/v1", "MODEL_API_KEY"),
             ("claude-code", "sonnet", None, None),
             ("manual", "external-agent", None, None),
@@ -740,6 +848,8 @@ STATUS: complete
                 self.assertEqual(loaded.llm.models[0].name, model)
                 if backend == "manual":
                     self.assertTrue(loaded.llm.manual_mode)
+                elif backend == "codex-cli":
+                    self.assertEqual(loaded.llm.models[0].provider, "codex_cli")
                 elif backend == "claude-code":
                     self.assertEqual(loaded.llm.models[0].provider, "claude_code")
 
@@ -876,9 +986,11 @@ STATUS: complete
         with self.assertRaises(skill.SkillError):
             skill.validate_budget_request(status, limits, 51)
         expensive = dict(limits)
+        expensive["max_estimated_cost_usd"] = 10.0
         expensive["estimated_cost_per_iteration_usd"] = 2.0
+        expensive_status = skill.budget_status(self.root, expensive)
         with self.assertRaises(skill.SkillError):
-            skill.validate_budget_request(status, expensive, 6)
+            skill.validate_budget_request(expensive_status, expensive, 6)
 
     def test_summarize_creates_standard_outputs(self) -> None:
         self.make_valid_for_run()
@@ -1022,6 +1134,29 @@ The closest methods, code overlaps, and remaining differences were audited.
             summary["novelty"]["claim_status"],
             "research novelty audited",
         )
+
+class CodexEvolutionAdapterTests(unittest.TestCase):
+    def test_default_command_is_read_only_and_does_not_take_api_credentials(self) -> None:
+        command = codex_evolution.codex_exec_command("default")
+        self.assertEqual(command[:2], ["codex", "exec"])
+        self.assertIn("--sandbox", command)
+        self.assertIn("read-only", command)
+        self.assertIn("--ephemeral", command)
+        self.assertNotIn("--model", command)
+        self.assertEqual(command[-1], "-")
+
+    def test_named_model_is_forwarded_to_codex_cli(self) -> None:
+        command = codex_evolution.codex_exec_command("gpt-5")
+        self.assertEqual(command[command.index("--model") + 1], "gpt-5")
+
+    def test_prompt_preserves_evolution_response_contract(self) -> None:
+        prompt = codex_evolution.compose_prompt(
+            "Preserve interfaces.",
+            [{"role": "user", "content": "Return a SEARCH/REPLACE diff."}],
+        )
+        self.assertIn("Preserve interfaces.", prompt)
+        self.assertIn("SEARCH/REPLACE", prompt)
+        self.assertIn("Do not run shell commands", prompt)
 
 
 if __name__ == "__main__":

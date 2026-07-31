@@ -5,7 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/github/license/xs271828/openevolve-scientist)](LICENSE)
 
-OpenEvolve Scientist is a Codex Skill and platform-neutral research CLI for reproducible and auditable [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve)-based algorithm-discovery experiments. It helps AI agents evolve and validate candidate algorithms with baseline reproduction, holdout validation, ablation studies, budget and resource controls, checkpoint recovery, failure analysis, and novelty audits.
+OpenEvolve Scientist is a Codex Skill and platform-neutral research CLI for reproducible and auditable [OpenEvolve](https://github.com/algorithmicsuperintelligence/openevolve)-based algorithm-discovery experiments. Its default `codex-cli` backend uses a saved-login Codex CLI to automatically generate each OpenEvolve mutation, while the workflow adds baseline reproduction, holdout validation, ablation studies, budgets, checkpoint recovery, failure analysis, and novelty audits.
 
 “Scientist” describes the research workflow, not autonomous scientific ability. This project is a governance layer around OpenEvolve—not a new evolution engine, not an AlphaEvolve implementation, not an official OpenEvolve component, and not a guarantee of algorithmic novelty.
 
@@ -30,12 +30,12 @@ Download [`openevolve-scientist.zip`](https://github.com/xs271828/openevolve-sci
 $openevolve-scientist
 ```
 
-The default `codex-native` path uses the current Codex model as the algorithm-candidate agent and a local Python evaluator. It does not require an API key, a second model client, Docker, or an OpenEvolve installation. The Skill guides Codex through:
+The default `codex-cli` path uses a separately installed and saved-login Codex CLI as the automatic per-generation mutation model. It requires no external API key or model gateway, but it does require `openevolve==0.3.2`, `codex login`, and an account with available Codex usage. The child CLI runs are separate non-interactive tasks: they do not inherit this chat's hidden state. The Skill guides Codex through:
 
 1. initializing a structured experiment;
-2. generating bounded candidates in the current Codex session, or configuring OpenAI-compatible, Claude Code, or manual model backends for external OpenEvolve runs;
+2. automatically running bounded Codex-driven OpenEvolve searches, or configuring the legacy in-session, OpenAI-compatible, Claude Code, or manual backends;
 3. validating the evaluator, public interface, context, resources, evidence, and budget;
-4. evaluating native candidates locally, or running/resuming OpenEvolve safely;
+4. running/resuming OpenEvolve safely and evaluating generated candidates locally;
 5. comparing candidates on held-out data and multiple seeds;
 6. generating a research report with ablations, failures, limitations, and claim status.
 
@@ -43,11 +43,14 @@ The Skill archive intentionally excludes this repository README, CI configuratio
 
 ## Generic CLI
 
-Any AI agent or human workflow that can execute Python and edit files can use the core CLI. For the Codex-native path, no external engine is needed:
+Any AI agent or human workflow that can execute Python and edit files can use the core CLI. With a saved-login Codex CLI, the default path is a real automatic evolution loop:
 
 ```text
-python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name example --backend codex-native
+python -m pip install openevolve==0.3.2
+python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name example --backend codex-cli
+python skill/openevolve-scientist/scripts/openevolve_skill.py doctor experiment
 python skill/openevolve-scientist/scripts/openevolve_skill.py validate experiment --for-run --mode host
+python skill/openevolve-scientist/scripts/openevolve_skill.py run experiment --mode host --acknowledge-host-risk
 ```
 
 For unattended external OpenEvolve runs, use Python 3.10+ and install the pinned engine in an isolated environment:
@@ -65,14 +68,15 @@ For an OpenAI-compatible backend, set the model name, API base, minimum model co
 
 | Backend | Typical models and services | Credentials | Execution |
 |---|---|---|---|
-| `codex-native` | The active Codex model in the current Codex task | None | Codex host + local evaluator |
+| `codex-cli` | Saved-login Codex CLI (automatic per-generation mutations) | Codex CLI login; no API key | Host only in V1 |
+| `codex-native` | Active Codex model in the current task (legacy manual candidate loop) | None | Codex host + local evaluator |
 | `openai-compatible` | OpenAI, OpenRouter, LiteLLM, Ollama, vLLM, and compatible Gemini endpoints | One or more environment variables | Host or Docker |
 | `claude-code` | Models available through an authenticated Claude Code CLI | Claude CLI session | Host only in V1 |
 | `manual` | Any model, agent, or human process that answers queue files | None | Host or Docker |
 
 “OpenAI-compatible” describes an API shape, not identical behavior. Private provider protocols that do not expose this shape require a gateway or the manual bridge.
 
-Manual mode is transport-agnostic, not constraint-free: declare the smallest context window of the model or agent that actually answers queue requests. Use zero estimated cost only for a reviewed local, human, or otherwise unbilled responder; use a conservative upper bound for billed or uncertain responders.
+Manual mode is transport-agnostic, not constraint-free: declare the smallest context window of the model or agent that actually answers queue requests. Use zero estimated cost only for a reviewed local, human, or otherwise unbilled responder; use a conservative upper bound for billed or uncertain responders. Codex CLI subscription use is controlled by iterations and wall time; the project does not misrepresent it as an exact USD meter.
 
 ## Relationship to AlphaEvolve and OpenEvolve
 
@@ -101,7 +105,7 @@ The final level records an audit outcome; it does not mathematically prove that 
 
 ## Limitations
 
-OpenEvolve Scientist does not guarantee a new algorithm or autonomously complete scientific research. It searches candidates against an evaluator, so reward hacking, development-set overfitting, leakage, and missing constraints remain central risks. Research novelty still requires prior-art review, strong baselines, held-out evaluation, ablations, and independent scrutiny.
+OpenEvolve Scientist does not guarantee a new algorithm or autonomously complete scientific research. `codex-cli` automates the mutation/search loop but every child run is a separate CLI task, affected by service availability, quotas, and model changes; it cannot recursively reuse this chat's private context. The workflow searches candidates against an evaluator, so reward hacking, development-set overfitting, leakage, and missing constraints remain central risks. Research novelty still requires prior-art review, strong baselines, held-out evaluation, ablations, and independent scrutiny.
 
 Generated code is untrusted. Docker reduces host exposure but is not a complete sandbox, and code in the same container can access mounted experiment files and passed model credentials. Host mode has no meaningful isolation.
 
@@ -115,9 +119,9 @@ Existing experiment directories remain compatible because the CLI subcommands, `
 
 ## 中文快速开始
 
-OpenEvolve Scientist 是面向 Codex 和其他可执行 Python 的 AI Agent 的 OpenEvolve 科研工作流。它为候选算法搜索增加可复现基线、留出集验证、多随机种子复测、消融、预算、Docker、接口契约、失败分析和新颖性审计。
+OpenEvolve Scientist 是面向 Codex 和其他可执行 Python 的 AI Agent 的 OpenEvolve 科研工作流。默认 `codex-cli` 后端会通过已登录的独立 Codex CLI，为每一代 OpenEvolve 搜索自动生成候选变异；工作流同时提供可复现基线、留出集验证、多随机种子复测、消融、预算、接口契约、失败分析和新颖性审计。
 
-“Scientist”描述的是科研流程，不表示它能够自主完成科学研究。它不是“保证发明新算法”的工具，也不是 AlphaEvolve 或 OpenEvolve 官方组件。所谓模型通用，是指支持 OpenAI-compatible 接口、Claude Code 和 manual queue；不兼容这些入口的模型需要通过网关或外部执行器连接。
+“Scientist”描述的是科研流程，不表示它能够自主完成科学研究。它不是“保证发明新算法”的工具，也不是 AlphaEvolve 或 OpenEvolve 官方组件。`codex-cli` 不需要外部 API Key，但需要安装独立 Codex CLI、完成 `codex login` 且账号仍有可用额度；每次变异是独立 CLI 任务，不能继承当前聊天的隐藏上下文。所谓模型通用，是指支持 Codex CLI、OpenAI-compatible 接口、Claude Code 和 manual queue；不兼容这些入口的模型需要通过网关或外部执行器连接。
 
 将 Release 中的 `openevolve-scientist/` 文件夹放入 Codex skills 目录，开始一个新的 Codex 任务后调用：
 
@@ -125,13 +129,15 @@ OpenEvolve Scientist 是面向 Codex 和其他可执行 Python 的 AI Agent 的 
 $openevolve-scientist
 ```
 
-使用通用 CLI 初始化 manual 后端实验：
+使用通用 CLI 初始化自动 Codex 演化实验（需要 Python 3.10+、`openevolve==0.3.2` 和已登录的 Codex CLI）：
 
 ```text
-python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name 示例 --backend manual
+python skill/openevolve-scientist/scripts/openevolve_skill.py init experiment --name 示例 --backend codex-cli
+python skill/openevolve-scientist/scripts/openevolve_skill.py doctor experiment
+python skill/openevolve-scientist/scripts/openevolve_skill.py run experiment --mode host --acknowledge-host-risk
 ```
 
-默认的 `codex-native` 模式直接使用当前 Codex 作为候选算法 Agent，不需要外部 API；`manual`、`openai-compatible` 和 `claude-code` 用于外部 OpenEvolve 搜索。
+默认的 `codex-cli` 模式由 OpenEvolve 自动调用 Codex 生成并评估候选；旧的 `codex-native` 是当前会话内的手动候选循环。`manual`、`openai-compatible` 和 `claude-code` 仍可用于其他后端。
 
 开始实验前必须阅读局限性说明，并在最终报告中完成任务特定的有效性威胁审计。
 

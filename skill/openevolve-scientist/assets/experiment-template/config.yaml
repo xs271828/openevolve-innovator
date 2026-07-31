@@ -9,13 +9,18 @@ convergence_threshold: 0.0001
 early_stopping_metric: "combined_score"
 
 # MODEL-BACKEND-START
-codex_native:
-  enabled: true
-  model: "codex-current-session"
-  external_api_required: false
 llm:
-  # The active Codex agent supplies candidates in codex-native mode.
-  models: []
+  # The skill injects a saved-login Codex CLI client when it launches OpenEvolve.
+  # `default` means use the CLI/account default model; no API key is stored here.
+  provider: "codex_cli"
+  temperature: 0.7
+  max_tokens: 8192
+  timeout: 300
+  retries: 2
+  retry_delay: 5
+  models:
+    - name: "default"
+      weight: 1.0
 # MODEL-BACKEND-END
 
 prompt:

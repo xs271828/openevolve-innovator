@@ -12,16 +12,19 @@ This skill calls OpenEvolve as an external dependency and does not redistribute 
 
 ## Model backends
 
-The runner exposes one Codex-native agent profile and three external OpenEvolve transport profiles:
+The runner exposes an automatic Codex CLI profile, a legacy in-session Codex profile, and three other transport profiles:
 
 | Backend | OpenEvolve configuration | Credentials | Docker |
 |---|---|---|---|
+| `codex-cli` | `provider: codex_cli`; the wrapper injects a `codex exec` client | Saved `codex login` session; no API key | Host-only |
 | `codex-native` | `codex_native.enabled: true`; OpenEvolve is not launched | None; the active Codex session generates candidates | Not used for model calls |
 | `openai-compatible` | `provider: openai` plus `api_base` | One or more `${ENV_VAR}` references | Supported |
 | `claude-code` | `provider: claude_code` | Authenticated `claude` CLI session | Host-only in the current implementation |
 | `manual` | `manual_mode: true` | None; answers arrive through the manual queue | Supported |
 
 OpenAI-compatible endpoints cover many hosted gateways and local servers, but providers may differ in parameter support, token accounting, context handling, errors, and reproducibility. Unknown provider names are rejected because OpenEvolve 0.3.2 otherwise falls back to its OpenAI backend.
+
+In `codex-cli`, the runner starts one read-only `codex exec` process per OpenEvolve mutation request. The process receives the explicit OpenEvolve prompt and returns only a diff or full rewrite; OpenEvolve remains responsible for selection, scoring, trace, checkpoints, and resume. The child runs are separate Codex tasks, not recursive calls into the current desktop conversation. Run `doctor <experiment>` before execution: it verifies the installed CLI, `codex exec --help`, and saved-login status without printing credentials. This backend consumes account quota and is host-only in V1.
 
 In `codex-native`, the Python runner does not call Codex through an API and does not launch an OpenEvolve subprocess. The active Codex task follows the Skill workflow, writes bounded candidate programs, runs the local evaluator, and records `results/codex_native_trace.jsonl`. This mode is available only when the host is running Codex; a generic Python process cannot recreate that session bridge.
 
@@ -64,8 +67,8 @@ Use `evaluate_stage1`, `evaluate_stage2`, and optionally `evaluate_stage3` only 
 
 ## Configuration requirements
 
-- Declare at least one model under `llm.models` for external OpenEvolve backends. In `codex-native`, set `codex_native.enabled: true`; an external LLM model list is intentionally not required.
-- Use only `openai`, `claude_code`, or `manual_mode`; do not rely on provider fallback.
+- Declare at least one model under `llm.models` for every automatic OpenEvolve backend. `codex-cli` uses `provider: codex_cli`; the model value `default` delegates selection to the installed Codex CLI. In `codex-native`, set `codex_native.enabled: true`; an external LLM model list is intentionally not required.
+- Use only `openai`, `codex_cli`, `claude_code`, or `manual_mode`; do not rely on provider fallback.
 - Use environment variables for credentials. Never place API keys in YAML.
 - Set `random_seed` and `database.random_seed`.
 - Set `early_stopping_metric: combined_score`.
@@ -114,7 +117,7 @@ For `results/ablation_results.csv`, record `split=holdout`, a stable `removed_co
 
 ## Docker and host modes
 
-Docker mode mounts only the experiment directory at `/experiment`, drops Linux capabilities, enables `no-new-privileges`, and limits memory, CPU, and process count. Network remains available because the model API usually requires it. A unique container name allows post-run OOM inspection; the wrapper removes the container after recording its state.
+Docker mode mounts only the experiment directory at `/experiment`, drops Linux capabilities, enables `no-new-privileges`, and limits memory, CPU, and process count. Network remains available because the model API usually requires it. A unique container name allows post-run OOM inspection; the wrapper removes the container after recording its state. `codex-cli` and `claude-code` are rejected in Docker mode because their saved host logins are not forwarded.
 
 OpenEvolve and generated candidate code share the container and required provider credential. Docker therefore protects the host better but does not make the model credential secret from a malicious candidate. Pass only the credential referenced by `config.yaml`; prefer a local model, a scoped gateway token, or a short-lived key with a strict spend limit.
 
